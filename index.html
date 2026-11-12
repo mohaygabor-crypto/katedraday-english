@@ -1,0 +1,1132 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Katedra High School</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Rubik:wght@600;800&family=Atkinson+Hyperlegible:wght@400;700&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+/* Layout: clock/stat bar, day progress pips, notebook, one illustrated scene (boxy buildings, floor plans, mini-games), one guide card. Single chalkboard look by choice; scenes are drawn in daylight colours. */
+:root{
+  color-scheme:dark;
+  --bg:#0f1c1a;
+  --panel:#172a27;
+  --panel-2:#1f3a36;
+  --line:#365a53;
+  --ink:#f1ede2;
+  --muted:#a8bdb5;
+  --accent:#ee7d52;
+  --accent-ink:#2a0d04;
+  --good:#7fd6a0;
+  --good-ink:#06230f;
+  --bad:#ff8593;
+  --warn:#f4cd5c;
+  --font-display:'Rubik','Arial Narrow',sans-serif;
+  --font-body:'Atkinson Hyperlegible',system-ui,-apple-system,'Segoe UI',sans-serif;
+  --font-mono:'DM Mono',ui-monospace,Menlo,Consolas,monospace;
+}
+*{box-sizing:border-box}
+html{background:var(--bg);min-height:100%}
+body{min-height:100vh;min-height:100dvh;box-sizing:border-box;background:var(--bg);color:var(--ink);font-family:var(--font-body);font-size:17px;line-height:1.5;margin:0;padding-block:20px 32px;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
+.wrap{max-width:860px;margin:0 auto;display:flex;flex-direction:column;gap:12px}
+.eyebrow{margin:0 0 6px;font-family:var(--font-mono);font-size:12px;letter-spacing:.14em;text-transform:uppercase;color:var(--accent)}
+h1{font-family:var(--font-display);font-weight:800;font-size:clamp(32px,8vw,52px);line-height:1;margin:0;letter-spacing:-.01em;text-wrap:balance}
+.sub{margin:8px 0 0;color:var(--muted);max-width:62ch}
+.hud{display:flex;gap:8px;flex-wrap:wrap;scroll-margin-top:8px}
+.clock{flex:1 1 220px;min-width:0;display:flex;align-items:baseline;gap:12px;background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:8px 14px}
+.clock b{font-family:var(--font-mono);font-weight:500;font-size:30px;font-variant-numeric:tabular-nums;color:var(--warn)}
+.clock span{color:var(--muted);font-size:15px;min-width:0}
+.stat{display:flex;align-items:baseline;gap:8px;background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:8px 14px}
+.stat b{font-family:var(--font-display);font-weight:800;font-size:24px;font-variant-numeric:tabular-nums}
+.stat span{color:var(--muted);font-size:14px}
+.pips{display:flex;gap:5px;list-style:none;margin:0;padding:0;flex-wrap:wrap}
+.pips li{width:22px;height:8px;border-radius:4px;background:var(--panel-2);border:1px solid var(--line)}
+.pips li.done{background:var(--good);border-color:var(--good)}
+.pips li.current{background:var(--accent);border-color:var(--accent)}
+details.nb{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:8px 14px}
+details.nb summary{cursor:pointer;font-weight:700}
+details.nb ul{margin:8px 0 2px;padding-left:20px;display:flex;flex-direction:column;gap:4px;color:var(--muted)}
+.stage{position:relative;border-radius:12px;overflow:hidden;border:1px solid var(--line);background:var(--panel)}
+.stage svg{display:block;width:100%;height:auto}
+.pscroll.plan{overflow-x:auto}
+.pscroll.plan svg{min-width:620px}
+.liftbar{display:flex;gap:6px;align-items:center;flex-wrap:wrap;padding:8px 10px;background:var(--panel);border-top:1px solid var(--line)}
+.liftlab{font-family:var(--font-mono);font-size:12px;letter-spacing:.12em;text-transform:uppercase;color:var(--muted);margin-right:4px}
+.liftbar button{min-width:38px;height:38px;padding:0 10px;border-radius:8px;border:1px solid var(--line);background:var(--panel-2);color:var(--ink);font:500 15px var(--font-mono);cursor:pointer}
+.liftbar button.on{background:var(--accent);border-color:var(--accent);color:var(--accent-ink)}
+.liftbar button:hover{border-color:var(--accent)}
+.hit{cursor:pointer}
+.hit:hover{filter:brightness(1.1)}
+.hit:focus-visible{outline:3px solid #f4cd5c;outline-offset:2px}
+.floor.sel rect:first-child{filter:brightness(1.06)}
+.me{transition:transform .9s ease-in-out;pointer-events:none}
+.room .rm{fill:rgba(158,208,240,.10);stroke:#9ed0f0;stroke-width:1.5}
+.room:hover .rm{fill:rgba(158,208,240,.26)}
+.room.good .rm{fill:rgba(127,214,160,.45);stroke:#7fd6a0;stroke-width:3}
+.room.bad .rm{fill:rgba(255,133,147,.5);stroke:#ff8593;stroke-width:3}
+.room text{font-family:var(--font-body);font-weight:700;font-size:21px;fill:#dff1ff;text-anchor:middle;pointer-events:none}
+.pot{transition:transform .15s}
+.pot.sel{transform:translateY(-14px)}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:18px;display:flex;flex-direction:column;gap:12px;min-width:0}
+.card h2{font-family:var(--font-display);font-weight:800;font-size:clamp(22px,4.6vw,30px);margin:0;line-height:1.1}
+.card p{margin:0}
+.meta{display:flex;align-items:center;gap:10px;flex-wrap:wrap;font-size:14px;color:var(--muted)}
+.tag{background:var(--accent);color:var(--accent-ink);font-family:var(--font-mono);font-weight:500;border-radius:4px;padding:2px 10px;letter-spacing:.08em;text-transform:uppercase;font-size:12px}
+.def{font-size:clamp(18px,4.2vw,21px);font-weight:700;line-height:1.35;text-wrap:balance}
+.task{color:var(--muted)}
+.talk{display:flex;gap:12px;align-items:flex-start}
+.av svg{display:block;width:56px;height:56px}
+.bubble{position:relative;flex:1 1 0;min-width:0;background:var(--panel-2);border:1px solid var(--line);border-radius:4px 14px 14px 14px;padding:10px 14px;display:flex;flex-direction:column;gap:6px}
+.bubble::before{content:"";position:absolute;left:-8px;top:14px;width:14px;height:14px;background:var(--panel-2);border-left:1px solid var(--line);border-bottom:1px solid var(--line);transform:rotate(45deg)}
+.who{font-weight:700;font-size:14px}
+.who span{font-weight:400;color:var(--muted);margin-left:8px}
+.say{color:var(--ink)}
+.row{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+.btn{font:inherit;font-weight:700;font-size:16px;padding:10px 18px;border-radius:8px;border:1px solid var(--accent);background:var(--accent);color:var(--accent-ink);cursor:pointer}
+.btn:hover{filter:brightness(1.08)}
+.btn.ghost{background:transparent;color:var(--ink);border-color:var(--line)}
+.btn.ghost:hover{border-color:var(--accent)}
+.btn:disabled{opacity:.5;cursor:not-allowed}
+.fb{min-height:1.5em;font-weight:700}
+.fb.good{color:var(--good)}
+.fb.bad{color:var(--bad)}
+a:focus-visible,button:focus-visible,input:focus-visible,summary:focus-visible{outline:3px solid var(--warn);outline-offset:2px}
+.intro{display:flex;gap:16px;flex-wrap:wrap;align-items:flex-start}
+.intro>div{flex:1 1 260px;min-width:0;display:flex;flex-direction:column;gap:10px}
+.field{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.lab{min-width:64px;font-weight:700}
+.txt{flex:1 1 200px;min-width:0;font:inherit;font-size:18px;padding:10px 12px;border:1px solid var(--line);border-radius:8px;background:var(--bg);color:var(--ink)}
+.sw{display:flex;gap:10px;flex-wrap:wrap}
+.swatch{width:36px;height:36px;border-radius:50%;border:2px solid var(--line);cursor:pointer;padding:0}
+.swatch.on{outline:3px solid var(--accent);outline-offset:2px}
+.hintline{color:var(--muted);font-size:15px}
+.route2{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:14px}
+.lab3{font-family:var(--font-mono);font-size:12px;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);margin-bottom:6px}
+.stepsl{display:flex;flex-direction:column;gap:8px;list-style:none;margin:0;padding:0;min-height:48px}
+.stepb{width:100%;text-align:left;font:inherit;font-size:16px;font-weight:700;padding:10px 12px;border-radius:8px;border:1px solid var(--line);background:var(--panel-2);color:var(--ink);cursor:pointer}
+.stepb:hover{border-color:var(--accent)}
+.stepb.ok{border-color:var(--good);background:rgba(127,214,160,.18)}
+.stepb.no{border-color:var(--bad);background:rgba(255,133,147,.16)}
+.dirs{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;max-width:380px}
+.dirs button{font:inherit;font-size:26px;font-weight:700;padding:12px 0;border-radius:10px;border:1px solid var(--line);background:var(--panel-2);color:var(--ink);cursor:pointer}
+.dirs button:hover:not(:disabled){border-color:var(--accent)}
+.prog{display:flex;flex-wrap:wrap;gap:6px;min-height:44px}
+.prog span{display:inline-grid;place-items:center;width:38px;height:38px;border-radius:8px;border:1px solid var(--line);background:var(--panel-2);font-size:22px;font-weight:700}
+.prog span.run{background:var(--accent);border-color:var(--accent);color:var(--accent-ink)}
+.prog span.empty{background:transparent;border-style:dashed;opacity:.5}
+.lock{display:flex;gap:14px;flex-wrap:wrap}
+.dig{display:flex;flex-direction:column;align-items:center;gap:6px}
+.dig button{width:56px;height:40px;font:inherit;font-size:18px;border-radius:8px;border:1px solid var(--line);background:var(--panel-2);color:var(--ink);cursor:pointer}
+.dig button:hover{border-color:var(--accent)}
+.dig output{display:grid;place-items:center;width:56px;height:64px;border-radius:8px;border:2px solid var(--warn);background:var(--bg);font-family:var(--font-mono);font-size:34px;color:var(--warn)}
+.acts{display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:8px}
+.act{display:flex;justify-content:space-between;align-items:center;gap:10px;text-align:left;font:inherit;font-size:16px;font-weight:700;padding:10px 12px;border-radius:8px;border:1px solid var(--line);background:var(--panel-2);color:var(--ink);cursor:pointer}
+.act b{font-family:var(--font-mono);font-weight:500;color:var(--warn);white-space:nowrap}
+.act[aria-pressed="true"]{border-color:var(--accent);background:rgba(238,125,82,.2)}
+.slrow{display:grid;grid-template-columns:70px 1fr 44px;gap:10px;align-items:center}
+.slrow input[type=range]{width:100%;accent-color:var(--accent);min-width:0}
+.slrow output{font-family:var(--font-mono);text-align:right}
+.chips{display:flex;flex-wrap:wrap;gap:8px}
+.chip{font:inherit;font-weight:700;padding:8px 14px;border:1px solid var(--line);border-radius:999px;background:var(--panel-2);color:var(--ink);cursor:pointer}
+.chip[aria-pressed="true"]{background:var(--accent);border-color:var(--accent);color:var(--accent-ink)}
+.cert{border:3px double var(--line);border-radius:10px;padding:18px;display:flex;flex-direction:column;gap:8px;text-align:center;background:var(--panel-2)}
+.cert-co{font-family:var(--font-mono);letter-spacing:.12em;text-transform:uppercase;font-size:13px;color:var(--muted)}
+.cert-name{font-family:var(--font-display);font-weight:800;font-size:clamp(28px,7vw,40px);line-height:1.05;color:var(--accent);overflow-wrap:anywhere}
+.cert-row{display:flex;justify-content:space-between;gap:12px;border-top:1px solid var(--line);padding-top:8px;text-align:left}
+.cert-row b{text-align:right;min-width:0;overflow-wrap:anywhere}
+.day{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:2px;font-size:15px;text-align:left}
+.day li{display:grid;grid-template-columns:52px 1fr auto;gap:8px}
+.day li span:first-child{font-family:var(--font-mono);color:var(--warn)}
+.day li span:last-child{color:var(--warn);letter-spacing:.1em}
+.copyrow{display:flex;gap:8px;flex-wrap:wrap}
+.copyrow input{flex:1 1 200px;min-width:0;font:inherit;font-size:14px;padding:8px 10px;border:1px solid var(--line);border-radius:8px;background:var(--bg);color:var(--ink)}
+.tchip{font:inherit;font-weight:700;min-width:78px;padding:8px 12px;border-radius:10px;border:2px solid;color:#fff;cursor:pointer;display:flex;flex-direction:column;align-items:center;line-height:1.1}
+.tchip b{font-family:var(--font-display);font-weight:800;font-size:24px}
+.tchip span{font-size:13px}
+.tchip.r{background:#c9302c;border-color:#e0605c}
+.tchip.b{background:#2b6fe0;border-color:#6aa0f0}
+.burst{transform-box:fill-box;transform-origin:center;animation:pulse 2s ease-in-out infinite}
+.conf{animation:floaty 2.6s ease-in-out infinite alternate}
+@keyframes pulse{0%,100%{transform:scale(.85);opacity:.8}50%{transform:scale(1.1);opacity:1}}
+@keyframes floaty{from{transform:translateY(-10px)}to{transform:translateY(12px)}}
+.hu{display:none;color:#ffd98a;font-style:italic;margin:4px 0 0}
+body.hu-on .hu{display:block}
+button .hu{color:inherit;opacity:.9;font-size:.82em;font-weight:600;margin:2px 0 0;text-align:inherit}
+.bubble .hu{margin:0}
+.glos{font-size:14px;font-style:normal;color:var(--muted)}
+.fb .hu{font-weight:600}
+.hubtn{font:inherit;font-weight:700;font-size:14px;padding:6px 12px;border-radius:999px;border:2px solid #ffd98a;background:transparent;color:#ffd98a;cursor:pointer;white-space:nowrap}
+.hubtn[aria-pressed="true"]{background:#ffd98a;color:#0f1c1a}
+.toprow{display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap}
+@media (prefers-reduced-motion:reduce){.me,.pot{transition:none}.burst,.conf{animation:none}}
+</style>
+</head>
+<body>
+
+<main class="wrap">
+  <header>
+    <div class="toprow"><p class="eyebrow">Open day · Student for a day</p><button class="hubtn" id="hubtn" type="button" aria-pressed="false">HU · Magyar segítség</button></div>
+    <h1>Katedra High School</h1>
+    <p class="sub">Spend one day at our school. Find the right rooms and solve the puzzles. Your day starts at 07:50. School starts at 08:15.</p>
+    <p class="hu" id="hsub">Tölts el egy napot az iskolánkban. Keresd meg a helyes termeket, és oldd meg a feladványokat. A napod 7:50-kor kezdődik. Az iskola 8:15-kor kezdődik.</p>
+  </header>
+  <div class="hud" id="hud">
+    <div class="clock"><b id="clock">07:50</b><span id="place">Before the day starts</span></div>
+    <div class="stat"><b id="stars">0</b><span>stars</span></div>
+    <div class="stat"><b id="lost">0</b><span>min lost</span></div>
+  </div>
+  <ol class="pips" id="pips" aria-label="Your day"></ol>
+  <details class="nb" id="nb"><summary>My notebook (<span id="nbn">0</span>)</summary><ul id="nbl"></ul></details>
+  <div class="stage" id="stage"></div>
+  <section class="card" id="card"></section>
+</main>
+
+<script>
+(function(){
+'use strict';
+var $=function(id){return document.getElementById(id)};
+var reduce=window.matchMedia&&matchMedia('(prefers-reduced-motion: reduce)').matches;
+function esc(s){return String(s).replace(/[&<>"']/g,function(c){return{'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]})}
+function shuffle(a){var b=a.slice();for(var i=b.length-1;i>0;i--){var j=Math.floor(Math.random()*(i+1)),t=b[i];b[i]=b[j];b[j]=t}return b}
+function P(pts){return pts.map(function(p){return p.join(',')}).join(' ')}
+function pad2(n){return (n<10?'0':'')+n}
+function clock(m){return pad2(Math.floor(m/60))+':'+pad2(m%60)}
+
+var HOODS=['#2f7de1','#2fa37a','#9b59d0','#e0873a'],HNAMES=['Blue','Green','Purple','Orange'];
+var CAST={
+  zoe:{n:'Zoe',r:'Classmate',suit:'#d0583a',hair:'#3b2a20',skin:'#e0a97c',bg:'#2d4a5a'},
+  kra:{n:'Mr Krammer',r:'IT teacher',suit:'#17785c',hair:'#7a4a26',skin:'#f0c29a',bg:'#12404a'},
+  kapas:{n:'Mrs Kapas',r:'Assistant principal',suit:'#444d66',hair:'#8a8f99',skin:'#f0c29a',bg:'#3b2f44'},
+  kiss:{n:'Ms Iren',r:'Secretary',long:1,suit:'#8a4fbf',hair:'#e9c872',skin:'#f3cba6',bg:'#2d2a58'},
+  prin:{n:'Mr Tubak',r:'Principal',beard:1,suit:'#2b3350',hair:'#9aa0aa',skin:'#e0a97c',bg:'#40324a'},
+  norek:{n:'Mrs Norek',r:'Art teacher',long:1,suit:'#c9822b',hair:'#4a2e1d',skin:'#f3cba6',bg:'#4a3224'},
+  szabo:{n:'Mr Zsolczai',r:'Graphic teacher',suit:'#2d7fa8',hair:'#3a2a20',skin:'#f0c29a',bg:'#27394a'}
+};
+var STEPS=[
+  {t:'07:50',place:'Main gate',lbl:'Find the entrance',run:stepGate},
+  {t:'08:05',place:'Ground floor to 1st floor',lbl:'Plan the way',run:stepRoute},
+  {t:'09:05',place:'Before lesson 2',lbl:'Find the IT room',run:stepITFind},
+  {t:'09:20',place:'Lesson 2 · IT',lbl:'Program the robot',run:stepRobot},
+  {t:'09:58',place:'Long break · 2nd floor',lbl:'Find the office',run:stepAssist},
+  {t:'10:02',place:'Long break · the yard',lbl:'Find the White House',run:stepWhite},
+  {t:'10:05',place:'Long break · White House',lbl:'Open the box',run:stepLock},
+  {t:'11:00',place:'Before lesson 4',lbl:'Find the art studio',run:stepArtFind},
+  {t:'11:15',place:'Lesson 4 · Art',lbl:'Mix the colours',run:stepMix},
+  {t:'13:40',place:'Lunch break',lbl:'Find the snack bar',run:stepKiosk},
+  {t:'13:45',place:'Lunch break',lbl:'Plan your lunch',run:stepPlan},
+  {t:'14:15',place:'Lesson 7 · Graphic',lbl:'Match the colour',run:stepRGB},
+  {t:'15:05',place:'Lesson 8 · Sport Day',lbl:'Make fair teams',run:stepSport},
+  {t:'15:50',place:'End of the day',lbl:'The end of the day',run:stepFinale}
+];
+var NP=13;
+var S={name:'',hood:0,step:-1,stars:[],lost:0,notes:[],mist:0,hint:false,cap:3,locked:false,timers:[]};
+var stage=$('stage'),card=$('card');
+
+function N(){return esc(S.name||'Alex')}
+function later(fn,ms){var id=setTimeout(fn,reduce?Math.min(ms,60):ms);S.timers.push(id);return id}
+function clearT(){S.timers.forEach(clearTimeout);S.timers=[]}
+function fb(t,c){var f=$('fb');if(!f)return;f.textContent=t;var h=hu(t);if(h){var sp=document.createElement('span');sp.className='hu';sp.textContent=h;f.appendChild(sp)}f.className='fb'+(c?' '+c:'')}
+function total(){return S.stars.reduce(function(a,b){return a+(b||0)},0)}
+function renderHud(){
+  var st=S.step<0?null:STEPS[S.step];
+  $('clock').textContent=st?st.t:'07:50';
+  $('place').textContent=st?st.place:'Before the day starts';
+  $('stars').textContent=total();$('lost').textContent=S.lost;
+}
+function renderPips(){
+  var h='';
+  for(var i=0;i<STEPS.length;i++){var c=i<S.step?'done':(i===S.step?'current':'');h+='<li class="'+c+'" title="'+STEPS[i].lbl+'"></li>'}
+  $('pips').innerHTML=h;
+}
+function renderNotes(){
+  $('nbn').textContent=S.notes.length;
+  $('nbl').innerHTML=S.notes.length?S.notes.map(function(n){return '<li>'+esc(n)+huSm(n)+'</li>'}).join(''):'<li>Nothing yet. New facts will appear here.</li>';
+}
+function addNote(t){if(S.notes.indexOf(t)<0){S.notes.push(t);renderNotes()}}
+function wrong(msg,cost){cost=cost||3;S.mist++;S.lost+=cost;renderHud();fb(msg+' (+'+cost+' min)','bad')}
+function finishP(){var st=S.mist===0?3:(S.mist<=2?2:1);if(S.hint)st=Math.min(st,2);st=Math.min(st,S.cap);S.stars[S.step]=st;renderHud();return st}
+function solve(msg,notes){
+  if(S.locked)return;S.locked=true;
+  var st=finishP();
+  fb(msg+'  '+new Array(st+1).join('★')+new Array(4-st).join('☆'),'good');
+  (notes||[]).forEach(addNote);
+  var b=document.createElement('div');b.className='row';
+  b.innerHTML='<button class="btn" id="nx" type="button">'+(S.step===NP-1?'Finish the day':'Next')+'</button>';
+  card.appendChild(b);huDecorate(b);
+  var n=$('nx');n.onclick=function(){go(S.step+1)};
+  try{n.focus({preventScroll:true})}catch(e){}
+}
+function go(i){
+  clearT();S.step=i;S.mist=0;S.hint=false;S.cap=3;S.locked=false;
+  $('nb').open=false;$('stage').parentNode.insertBefore($('nb'),$('stage'));
+  renderHud();renderPips();
+  STEPS[i].run();
+  try{$('hud').scrollIntoView({block:'start',behavior:reduce?'auto':'smooth'})}catch(e){}
+}
+var avN=0;
+function avatar(sp){
+  avN++;var id='av'+avN;
+  return '<svg viewBox="0 0 56 56" aria-hidden="true"><defs><clipPath id="'+id+'"><circle cx="28" cy="28" r="28"/></clipPath></defs><g clip-path="url(#'+id+')"><rect width="56" height="56" fill="'+sp.bg+'"/><rect x="9" y="39" width="38" height="24" rx="10" fill="'+sp.suit+'"/><path d="M23 39h10l-5 10z" fill="#f1ede2"/>'+(sp.long?'<path d="M14.5 24Q12 41 17.5 47L38.5 47Q44 41 41.5 24Z" fill="'+sp.hair+'"/>':'')+'<circle cx="28" cy="25" r="12" fill="'+sp.skin+'"/><path d="M16 24a12 12 0 0 1 24 0c-4-3-8-4-12-4s-8 1-12 4z" fill="'+sp.hair+'"/>'+(sp.beard?'<path d="M16.3 26Q15 40 21.5 50Q28 57 34.5 50Q41 40 39.7 26Q37 33.5 28 33.5Q19 33.5 16.3 26z" fill="'+sp.hair+'" stroke="#6f7480" stroke-width=".8"/><path d="M22 31.5q6 -2.5 12 0" stroke="#6f7480" stroke-width="1.4" fill="none" stroke-linecap="round"/>':'')+'<circle cx="23.5" cy="26" r="1.7" fill="#0a1513"/><circle cx="32.5" cy="26" r="1.7" fill="#0a1513"/><path d="M23 31q5 4 10 0" stroke="#0a1513" stroke-width="1.8" fill="none" stroke-linecap="round"/></g><circle cx="28" cy="28" r="27" fill="none" stroke="#365a53" stroke-width="2"/></svg>';
+}
+/* ---------- Hungarian help ---------- */
+var HUD={
+'Hi {n}! I am Zoe, your new classmate. I use a wheelchair, so I need the ramp. Can you find the way in?':'Szia {n}! Zoe vagyok, az új osztálytársad. Kerekesszékkel közlekedem, ezért szükségem van a rámpára. Megtalálod a bejáratot?',
+'Our first lesson is English. It starts at 08:15. The classroom is on the 1st floor. Which way do we go?':'Az első óránk angol. 8:15-kor kezdődik. A tanterem az 1. emeleten van. Merre menjünk?',
+'Hi {n}! Welcome to the IT lesson. Our room is opposite the toilets. It is not on the ground floor. See you there!':'Szia {n}! Üdv az informatikaórán. A termünk a mosdóval szemben van. Nem a földszinten van. Ott találkozunk!',
+'Welcome to the IT room, {n}! Everybody has a computer here. Today we do a coding puzzle.':'Üdv az informatikateremben, {n}! Itt mindenkinek van számítógépe. Ma egy programozós feladványt oldunk meg.',
+'Thank you, {n}! The principal wants to meet you, too. Please go to the White House in the yard. It is the office building of the school.':'Köszönöm, {n}! Az igazgató is szeretne megismerni téged. Kérlek, menj a Fehér Házba az udvaron. Ez az iskola irodaépülete.',
+'Break time! Please take this note to the assistant principal\'s office. It is on the 2nd floor, opposite the teachers\' toilets.':'Szünet van! Kérlek, vidd el ezt a cetlit az igazgatóhelyettes irodájába. A 2. emeleten van, a tanári mosdóval szemben.',
+'The principal works in the office building in the yard. Please go there now!':'Az igazgató az udvaron lévő irodaépületben dolgozik. Kérlek, menj oda most!',
+'Hello {n}! The principal is in a meeting. Your welcome pack is in this box. The code has three numbers. Look in your notebook at the bottom of the page!':'Szia {n}! Az igazgató értekezleten van. Az üdvözlő csomagod ebben a dobozban van. A kódnak három száma van. Nézd meg a jegyzetfüzetedet az oldal alján!',
+'Welcome to Katedra, {n}! Here is your student card and your welcome pack. We are happy that you are here. Our school is friendly. Students and teachers say hello in the corridors, and everybody helps each other. Enjoy the rest of your day!':'Üdv a Katedrában, {n}! Itt van a diákigazolványod és az üdvözlő csomagod. Örülünk, hogy itt vagy. Az iskolánk barátságos. A diákok és a tanárok köszönnek egymásnak a folyosón, és mindenki segít a másiknak. Élvezd a nap hátralévő részét!',
+'Hello {n}! The art lesson is on the top floor. Go to the small corridor. There are three rooms at the end. I am in the room on the right. It is not the room on the far right. That room has computers.':'Szia {n}! A művészetóra a legfelső emeleten van. Menj a kis folyosóra. A végén három terem van. Én a jobb oldali teremben vagyok, de nem a legszélső jobb oldaliban. Abban számítógépek vannak.',
+'Welcome to the art studio, {n}! Our students have a lot of space and good materials here. Today we mix paint. Look at the colour. Which two paints make it?':'Üdv a művészeti műteremben, {n}! A diákoknak itt sok helyük és jó anyagaik vannak. Ma festéket keverünk. Nézd a színt. Melyik két festék adja ki?',
+'It is 13:40. Lunch time! I want a sandwich from the snack bar. It is outside the school, in the car park with many trees. Where is it?':'13:40 van. Ebédidő! Szendvicset szeretnék a büfében. Az iskolán kívül van, a sok fával teli parkolóban. Hol van?',
+'I am so hungry! Lunch is usually from 13:40 to 14:10. The next lesson starts at 14:10. We need a plan.':'Annyira éhes vagyok! Az ebédszünet általában 13:40-től 14:10-ig tart. A következő óra 14:10-kor kezdődik. Kell egy terv.',
+'Welcome to the graphic studio, {n}! It is a classroom with computers. Every colour on a screen is a mix of red, green and blue light.':'Üdv a grafikai teremben, {n}! Ez egy számítógépes tanterem. A képernyő minden színe piros, zöld és kék fény keveréke.',
+'Do you know? Every year we organise a Sport Day at Katedra. All the students play together. Today we play tug of war. The teams are not fair. Can you help?':'Tudtad? Minden évben sportnapot szervezünk a Katedrában. Minden diák együtt játszik. Ma kötélhúzást játszunk. A csapatok nem igazságosak. Tudsz segíteni?',
+'What a day, {n}! We learned, we played and we had fun. Thank you for coming to Katedra!':'Micsoda nap, {n}! Tanultunk, játszottunk és jól éreztük magunkat. Köszönjük, hogy eljöttél a Katedrába!',
+'Tap the main entrance of the school. The ramp goes to it.':'Koppints az iskola főbejáratára. A rámpa oda vezet.',
+'Put the steps in the right order. You do not need all the steps. Tap a step to add it. Tap it again to take it away.':'Tedd a lépéseket a helyes sorrendbe. Nem kell az összes lépés. Koppints egy lépésre, hogy hozzáadd. Koppints rá újra, hogy elvedd.',
+'Use the floor buttons to look at the floors. Then tap the right room. Swipe sideways to see the whole plan.':'Az emeletgombokkal nézd meg az emeleteket. Aztán koppints a helyes teremre. Húzd oldalra az ujjad, hogy az egész alaprajzot lásd.',
+'Tap the arrows to make a program. Then press Run. The robot must go to the flag. It cannot go through the desks.':'Koppints a nyilakra, és készíts programot. Aztán nyomd meg az Indítás gombot. A robotnak a zászlóhoz kell mennie. Nem mehet át a padokon.',
+'Use the floor buttons to go to the right floor. Then tap the assistant principal\'s office. Swipe sideways to see the whole plan.':'Az emeletgombokkal menj a helyes emeletre. Aztán koppints az igazgatóhelyettes irodájára. Húzd oldalra az ujjad az egész alaprajzhoz.',
+'Tap that building on the map. It is not the school. It is not the art workshop.':'Koppints arra az épületre a térképen. Nem az iskola. Nem a művészeti műhely.',
+'Number 1: The number of floors above the ground floor.<br>Number 2: The number of classrooms on the 1st floor.<br>Number 3: The number of IT rooms on the 3rd floor.':'1. szám: A földszint feletti emeletek száma.<br>2. szám: Az 1. emeleten lévő tantermek száma.<br>3. szám: A 3. emeleten lévő informatikatermek száma.',
+'Go to the top floor (the 4th floor). Use the floor buttons. Then tap the room for the art lesson. Swipe sideways to see the whole plan.':'Menj a legfelső emeletre (a 4. emeletre). Használd az emeletgombokat. Aztán koppints a művészetórás teremre. Húzd oldalra az ujjad az egész alaprajzhoz.',
+'Tap the snack bar on the map.':'Koppints a büfére a térképen.',
+'You have 30 minutes. Choose what you do. You must get lunch and be back at school at 14:10. Use all 30 minutes: not less, not more!':'Van 30 perced. Válaszd ki, mit csinálsz. Ebédelned kell, és 14:10-re vissza kell érned az iskolába. Használd fel mind a 30 percet: se többet, se kevesebbet!',
+'Every number is the strength of a player. Tap a player to change the team. Make two teams of 4 players. Both teams must have the same strength.':'Minden szám egy játékos ereje. Koppints egy játékosra, hogy másik csapatba kerüljön. Készíts két csapatot, mindegyikben 4 játékos legyen. Mindkét csapat erőssége egyforma legyen.',
+'What did you like best today?':'Mi tetszett a legjobban ma?',
+'Choose two paints.':'Válassz két festéket.',
+'Move the sliders.':'Mozgasd a csúszkákat.',
+'Katedra High School has an art section, an IT section and a general class. Today you are in the general class. You will try an IT lesson and an art lesson. School starts at 08:15.':'A Katedra High Schoolnak van művészeti tagozata, informatikai tagozata és általános osztálya. Ma te az általános osztályban vagy. Kipróbálsz egy informatikaórát és egy művészetórát. Az iskola 8:15-kor kezdődik.',
+'Spend one day at our school. Find the right rooms and solve the puzzles. Your day starts at 07:50. School starts at 08:15.':'Tölts el egy napot az iskolánkban. Keresd meg a helyes termeket, és oldd meg a feladványokat. A napod 7:50-kor kezdődik. Az iskola 8:15-kor kezdődik.',
+'Look for the orange roof over the door. The ramp is next to it.':'Keresd a narancssárga tetőt az ajtó felett. A rámpa mellette van.',
+'You need five steps. The stairs are opposite the main entrance. You turn right from the stairs.':'Öt lépés kell. A lépcső a főbejárattal szemben van. A lépcsőtől jobbra fordulsz.',
+'Find the floors with IT rooms. Which room has toilets on the other side of the corridor?':'Keresd meg azokat az emeleteket, ahol informatikatermek vannak. Melyik teremmel szemben van mosdó a folyosó másik oldalán?',
+'Think first. Go to the right, then go up. Look for a free way between the desks.':'Előbb gondolkodj. Menj jobbra, aztán fel. Keress szabad utat a padok között.',
+'Find the floor with the teachers\' toilets. The office is on the other side of the corridor.':'Keresd meg a tanári mosdós emeletet. Az iroda a folyosó másik oldalán van.',
+'The art workshop has colourful paint on the wall. The other building is the one you need.':'A művészeti műhely falán színes festék van. A másik épület kell neked.',
+'Scroll down to your notebook. All three numbers are there.':'Görgess le a jegyzetfüzetedhez. Mindhárom szám ott van.',
+'Look at the three rooms under the yellow line: left, right and far right. The art studio is in the middle.':'Nézd meg a három termet a sárga vonal alatt: bal, jobb és legszélső jobb. A művészeti műterem középen van.',
+'Red and yellow make orange. Blue and yellow make green. Red and blue make purple. White makes a colour light.':'Piros és sárga: narancs. Kék és sárga: zöld. Piros és kék: lila. A fehér világosabbá teszi a színt.',
+'Look outside the main gate. The snack bar is the small yellow box with a red and white roof.':'Nézz ki a főkapun kívülre. A büfé a kis sárga doboz piros-fehér tetővel.',
+'You must walk there, wait, eat and walk back. Add the minutes of the four must-do things. Then find extra things that fit in the minutes left.':'El kell sétálnod, sorban kell állnod, enned kell és vissza kell sétálnod. Add össze a négy kötelező dolog perceit. Aztán keress extra dolgokat, amik beleférnek a maradék percekbe.',
+'Look at the target colour. Which light is strong: red, green or blue? Start with that one.':'Nézd a cél színt. Melyik fény erős: a piros, a zöld vagy a kék? Azzal kezdd.',
+'Yes! This is the main entrance. The ramp goes to it, so Zoe can come in too. The school has four floors above the ground floor.':'Igen! Ez a főbejárat. A rámpa ide vezet, így Zoe is be tud jönni. Az iskolának négy emelete van a földszint felett.',
+'That is the way! You are in your classroom at 08:05. The lesson starts at 08:15.':'Ez az út! 8:05-kor már az osztályteremben vagy. Az óra 8:15-kor kezdődik.',
+'Yes! This IT room is opposite the toilets. The computers are ready.':'Igen! Ez az informatikaterem a mosdóval szemben van. A számítógépek készen állnak.',
+'The robot reached the flag! Your program works.':'A robot elérte a zászlót! A programod működik.',
+'Right! This is the assistant principal\'s office.':'Helyes! Ez az igazgatóhelyettes irodája.',
+'Yes! This is the White House. It is the office building. The principal works here.':'Igen! Ez a Fehér Ház. Ez az irodaépület. Az igazgató itt dolgozik.',
+'Click! The box opens.':'Kattanás! A doboz kinyílik.',
+'Yes! This is the art studio. Mrs Norek is waiting.':'Igen! Ez a művészeti műterem. Norek tanárnő vár.',
+'Beautiful! You mixed all the colours.':'Gyönyörű! Minden színt összekevertél.',
+'Yes! The snack bar is outside the main gate, in the car park with many trees.':'Igen! A büfé a főkapun kívül van, a sok fával teli parkolóban.',
+'Perfect! Exactly 30 minutes. You have lunch, a drink, a call home and you are back on time.':'Tökéletes! Pontosan 30 perc. Ebédelsz, iszol, felhívod otthon a családot, és időben visszaérsz.',
+'Fair teams! The rope does not move. Everybody cheers.':'Igazságos csapatok! A kötél nem mozdul. Mindenki ujjong.',
+'This is the main gate. Go into the yard first.':'Ez a főkapu. Előbb menj be az udvarra.',
+'This is a wall of the school. Look for the door with the ramp.':'Ez az iskola fala. Keresd az ajtót a rámpával.',
+'One step is not on the way.':'Az egyik lépés nincs az úton.',
+'You need more steps.':'Több lépés kell.',
+'Some steps are in the wrong order.':'Néhány lépés rossz sorrendben van.',
+'This IT room is next to the stairs. We need the room opposite the toilets.':'Ez az informatikaterem a lépcső mellett van. A mosdóval szembeni terem kell.',
+'This is the IT lab on the ground floor. Our room is not on the ground floor.':'Ez az informatikai labor a földszinten. A mi termünk nem a földszinten van.',
+'This is the teachers\' office. It is next to the stairs, not opposite the toilets.':'Ez a tanári iroda. A lépcső mellett van, nem a mosdóval szemben.',
+'These are the teachers\' toilets! The office is opposite them.':'Ez a tanári mosdó! Az iroda vele szemben van.',
+'This is the art workshop. Look at the paint on the wall!':'Ez a művészeti műhely. Nézd a festéket a falon!',
+'This is the school building. The principal works in another building.':'Ez az iskolaépület. Az igazgató másik épületben dolgozik.',
+'This is the snack bar. It sells food, not school papers.':'Ez a büfé. Ételt árul, nem iskolai papírokat.',
+'The box stays closed. Check your notebook at the bottom of the page.':'A doboz zárva marad. Nézd meg a jegyzetfüzetedet az oldal alján.',
+'This room has computers. It is the graphic studio, not the art studio.':'Ebben a teremben számítógépek vannak. Ez a grafikai terem, nem a művészeti műterem.',
+'This is a normal classroom. It is on the left.':'Ez egy normál tanterem. Balra van.',
+'This is the main gate. The snack bar is outside it, in the car park.':'Ez a főkapu. A büfé azon kívül van, a parkolóban.',
+'These are trees and a bench. Look for the snack bar on the grey car park.':'Ezek fák és egy pad. A büfét a szürke parkolóban keresd.',
+'Not close enough. Move the sliders again.':'Nem elég közel. Mozgasd újra a csúszkákat.',
+'Add some arrows first.':'Előbb adj hozzá nyilakat.',
+'The robot stopped. It is not at the flag.':'A robot megállt. Nincs a zászlónál.',
+'Bzzt! The robot hit the wall.':'Bzzt! A robot a falnak ütközött.',
+'Bzzt! The robot hit a desk.':'Bzzt! A robot egy padnak ütközött.',
+'Copied!':'Másolva!','Very close! Tap Check.':'Nagyon közel! Koppints az Ellenőrzésre.','Getting closer.':'Már közelebb vagy.','Still far away.':'Még messze vagy.',
+'School day: lesson 1 starts at 08:15 and lesson 2 at 09:10. The long break is 09:55–10:10. Then every lesson is 45 minutes and every break is 10 minutes. Lunch is at 13:40.':'Iskolai nap: az 1. óra 8:15-kor, a 2. óra 9:10-kor kezdődik. A nagy szünet 9:55-től 10:10-ig tart. Utána minden óra 45 perc, és minden szünet 10 perc. Az ebédszünet 13:40-kor van.',
+'The school building has 4 floors above the ground floor.':'Az iskolaépületnek 4 emelete van a földszint felett.',
+'There is a ramp next to the main entrance.':'A főbejárat mellett rámpa van.',
+'The stairs are opposite the main entrance. The reception is on the left. The vending machines are behind it.':'A lépcső a főbejárattal szemben van. A recepció balra van. Az automaták mögötte vannak.',
+'1st floor: 5 classrooms, a girls\' toilet and a boys\' toilet. Turn right from the stairs.':'1. emelet: 5 tanterem, egy lány és egy fiú mosdó. A lépcsőtől jobbra fordulj.',
+'IT rooms: 1 IT lab on the ground floor (next to the small library) and 2 IT rooms on the 3rd floor.':'Informatikatermek: 1 informatikai labor a földszinten (a kis könyvtár mellett) és 2 informatikaterem a 3. emeleten.',
+'3rd floor: one IT room is at the stairs. One IT room is opposite the toilets.':'3. emelet: az egyik informatikaterem a lépcsőnél van. Egy másik a mosdóval szemben van.',
+'2nd floor: the teachers\' office is next to the stairs. The assistant principal\'s office is opposite the teachers\' toilets.':'2. emelet: a tanári iroda a lépcső mellett van. Az igazgatóhelyettes irodája a tanári mosdóval szemben van.',
+'2nd floor: the big staff room is at the end of the small corridor. There is a lounge area with a table, chairs and a big couch.':'2. emelet: a nagy tanári szoba a kis folyosó végén van. Van egy pihenősarok asztallal, székekkel és egy nagy kanapéval.',
+'The White House is the office building. The principal works there.':'A Fehér Ház az irodaépület. Az igazgató ott dolgozik.',
+'You got a welcome pack from the principal in the White House.':'Üdvözlő csomagot kaptál az igazgatótól a Fehér Házban.',
+'4th floor: there are three rooms at the end of the small corridor. They are a normal classroom, the art studio and the graphic studio with computers.':'4. emelet: a kis folyosó végén három terem van. Egy normál tanterem, a művészeti műterem és a számítógépes grafikai terem.',
+'The art studio is for the students. There is also an art workshop in the yard.':'A művészeti műterem a diákoké. Az udvaron is van egy művészeti műhely.',
+'The snack bar is outside the main gate, in the car park with many trees.':'A büfé a főkapun kívül van, a sok fával teli parkolóban.',
+'The lunch break is usually between 13:40 and 14:10.':'Az ebédszünet általában 13:40 és 14:10 között van.',
+'Lunch: walk 4 min, queue 8 min, eat 7 min, walk back 4 min, drink 3 min and call home 4 min. That is 30 minutes.':'Ebéd: séta 4 perc, sorban állás 8 perc, evés 7 perc, séta vissza 4 perc, ital 3 perc és otthoni hívás 4 perc. Ez 30 perc.',
+'Lunch is 30 minutes. You must walk to the snack bar, wait, eat and walk back.':'Az ebédszünet 30 perc. El kell sétálnod a büfébe, sorban kell állnod, enned kell és vissza kell sétálnod.',
+'The graphic studio is a classroom with computers on the 4th floor.':'A grafikai terem egy számítógépes tanterem a 4. emeleten.',
+'Katedra has a Sport Day every year.':'A Katedrában minden évben van sportnap.',
+'We organise a Sport Day every year. Come and play with us!':'Minden évben sportnapot szervezünk. Gyere, játssz velünk!',
+'Do you like IT? The IT section uses our well-equipped IT rooms every day.':'Szereted az informatikát? Az informatikai tagozat minden nap a jól felszerelt informatikatermeinket használja.',
+'Do you like art? The art section uses the art studio, the graphic studio and the art workshop.':'Szereted a művészetet? A művészeti tagozat a művészeti műtermet, a grafikai termet és a művészeti műhelyt használja.',
+'The friendly atmosphere is one of the best things about Katedra. Come and say hello!':'A barátságos hangulat a Katedra egyik legjobb dolga. Gyere, köszönj be!',
+'Not sure yet? That is fine. The general class is a good place to try many things.':'Még nem tudod? Semmi baj. Az általános osztály jó hely arra, hogy sok mindent kipróbálj.',
+'Go in through the main entrance.':'Menj be a főbejáraton.',
+'Walk to the stairs. They are opposite the entrance.':'Sétálj a lépcsőhöz. A bejárattal szemben van.',
+'Go up to the 1st floor.':'Menj fel az 1. emeletre.',
+'Turn right from the stairs.':'A lépcsőtől fordulj jobbra.',
+'Find your classroom. There are five on this floor.':'Keresd meg az osztálytermed. Öt van ezen az emeleten.',
+'Turn left after the reception and go to the library.':'A recepció után fordulj balra, és menj a könyvtárba.',
+'Go up to the 4th floor.':'Menj fel a 4. emeletre.',
+'Walk to the snack bar':'Séta a büfébe','Wait in the queue':'Sorban állás','Eat your lunch on a bench in front of the snack bar':'Ebéd egy padon a büfé előtt','Walk back to school':'Séta vissza az iskolába','Get a drink from the vending machines':'Ital az automatából','Chat with friends on the couch':'Csevegés a barátokkal a kanapén','Visit the small library':'Látogatás a kis könyvtárban','Call home':'Hívás haza','Take a photo in the art corridor':'Fotó a művészeti folyosón',
+'Hint':'Tipp','Next':'Tovább','Finish the day':'A nap vége','Check my way':'Ellenőrzöm az utat','Run':'Indítás','Undo':'Vissza','Clear':'Törlés','Open the box':'Kinyitom a dobozt','Mix':'Keverés','Check my plan':'Ellenőrzöm a tervet','Keep this plan':'Megtartom a tervet','Check my colour':'Ellenőrzöm a színt','Start the game!':'Indítsd a játékot!','Copy result':'Eredmény másolása','Play again':'Újra játszom','Start the day':'Kezdjük a napot',
+'Sport Day':'Sportnap','IT lessons':'Informatikaórák','Art lessons':'Művészetórák','The atmosphere':'A hangulat','I am not sure yet':'Még nem tudom'
+};
+var HYARD={'the main entrance':'A főbejárat','the ramp':'A rámpa','the school building':'Az iskolaépület','the white house':'A Fehér Ház','the art workshop':'A művészeti műhely','the snack bar':'A büfé','the main gate':'A főkapu','the green area':'A zöld terület','the trees and bench':'A fák és a pad'};
+var HROOM={'art studio':'művészeti műterem','assistant principal':'igazgatóhelyettesi iroda','classroom':'tanterem','graphic studio':'grafikai terem','it lab':'informatikai labor','it room':'informatikaterem','lift':'lift','lounge area':'pihenősarok','meeting room':'tárgyalóterem','reception + vending':'recepció és automaták','small library':'kis könyvtár','staff room':'tanári szoba','student kitchen':'diákkonyha','teachers\' office':'tanári iroda','teachers\' toilets':'tanári mosdó','technician office':'technikusi iroda','wc boys\'':'fiú WC','wc girls\'':'lány WC','supply room':'raktár','a room':'terem'};
+var HCOL={'sunset orange':'naplemente-narancs','sky blue':'égszínkék','violet':'ibolya','fresh green':'friss zöld','hot pink':'élénk rózsaszín','purple':'lila','light blue':'világoskék','green':'zöld','pink':'rózsaszín','orange':'narancssárga','light yellow':'világossárga'};
+var HACT={'walk to the snack bar':'sétálni a büfébe','wait in the queue':'sorban állni','eat your lunch on a bench in front of the snack bar':'megebédelni egy padon a büfé előtt','walk back to school':'visszasétálni az iskolába'};
+var GLOSS=[
+['art section = művészeti tagozat','IT section = informatikai tagozat','general class = általános osztály','puzzle = feladvány','notebook = jegyzetfüzet','hoodie = kapucnis pulóver','wrong try = rossz próba'],
+['classmate = osztálytárs','wheelchair = kerekesszék','ramp = rámpa','main entrance = főbejárat','roof = tető','door = ajtó','tap = koppints'],
+['lesson = tanóra','classroom = tanterem','floor = emelet','stairs = lépcső','step = lépés','turn right / left = fordulj jobbra / balra','opposite = szemben','reception = recepció','library = könyvtár'],
+['IT room = informatikaterem','toilets = mosdó','opposite = szemben','ground floor = földszint','corridor = folyosó','lift = lift','swipe = húzd az ujjad','IT lab = informatikai labor','supply room = raktár'],
+['coding = programozás','program = program','run = indítás','robot = robot','flag = zászló','desk = pad','arrow = nyíl','undo = visszavonás','clear = törlés'],
+['assistant principal = igazgatóhelyettes','office = iroda','teachers’ toilets = tanári mosdó','break = szünet','note = cetli','next to = mellett','opposite = szemben','corridor = folyosó','swipe = húzd az ujjad'],
+['principal = igazgató','White House = Fehér Ház','yard = udvar','office building = irodaépület','art workshop = művészeti műhely','building = épület','map = térkép'],
+['welcome pack = üdvözlő csomag','code = kód','number = szám','box = doboz','notebook = jegyzetfüzet','floors above the ground floor = a földszint feletti emeletek','classrooms = tantermek','meeting = értekezlet','student card = diákigazolvány'],
+['art lesson = művészetóra','art studio = művészeti műterem','graphic studio = grafikai terem','top floor = legfelső emelet','corridor = folyosó','far right = legszélső jobb','supply room = raktár','computers = számítógépek','lift = lift'],
+['paint = festék','mix = keverés','colour = szín','easel = festőállvány','red = piros','yellow = sárga','blue = kék','white = fehér','orange = narancs','green = zöld','purple = lila','light = világos'],
+['lunch = ebéd','snack bar = büfé','sandwich = szendvics','outside = kívül','car park = parkoló','trees = fák','bench = pad','main gate = főkapu'],
+['lunch break = ebédszünet','queue = sorban állás','minutes = perc','plan = terv','vending machines = automaták','library = könyvtár','bench = pad','call home = hívás haza','late = késik'],
+['graphic studio = grafikai terem','colour = szín','slider = csúszka','red = piros','green = zöld','blue = kék','light = fény','screen = képernyő','target = cél'],
+['Sport Day = sportnap','tug of war = kötélhúzás','team = csapat','player = játékos','strength = erő','fair = igazságos','rope = kötél','total = összeg','stronger = erősebb'],
+['certificate = oklevél','stars = csillagok','minutes lost = elvesztett percek','title = cím','atmosphere = hangulat','play again = újra játszom']
+];
+function nk(t){return String(t).replace(/’/g,"'").replace(/\s+/g,' ').trim()}
+var HUM={};Object.keys(HUD).forEach(function(k){HUM[nk(k)]=HUD[k]});
+var HPOT={red:'piros',yellow:'sárga',blue:'kék',white:'fehér'};
+var HUP=[
+  [/^Chosen: (.+)$/,function(m){return 'Kiválasztva: '+m[1].split(' + ').map(function(x){return HPOT[x]||x}).join(' + ')}],
+  [new RegExp('^('+Object.keys(HYARD).join('|')+')\\. This is not the school entrance\\.$','i'),function(m){return HYARD[m[1].toLowerCase()]+'. Ez nem az iskola bejárata.'}],
+  [new RegExp('^('+Object.keys(HYARD).join('|')+')\\. There are no offices here\\.$','i'),function(m){return HYARD[m[1].toLowerCase()]+'. Itt nincsenek irodák.'}],
+  [new RegExp('^('+Object.keys(HYARD).join('|')+')\\. The snack bar is outside the school\\.$','i'),function(m){return HYARD[m[1].toLowerCase()]+'. A büfé az iskolán kívül van.'}],
+  [/^This is a (.+)\. It is not an IT room\.$/,function(m){return 'Ez egy '+(HROOM[m[1].toLowerCase()]||m[1])+'. Ez nem informatikaterem.'}],
+  [/^This is a (.+)\. We need the office opposite the teachers' toilets\.$/,function(m){return 'Ez egy '+(HROOM[m[1].toLowerCase()]||m[1])+'. A tanári mosdóval szembeni iroda kell.'}],
+  [/^This is a (.+)\. Look at the three rooms at the end of the small corridor\.$/,function(m){return 'Ez egy '+(HROOM[m[1].toLowerCase()]||m[1])+'. Nézd a három termet a kis folyosó végén.'}],
+  [/^Colour (\d) of 4\. Tap two paint pots\. Then press Mix\.$/,function(m){return m[1]+'. szín a 4-ből. Koppints két festékesdobozra. Aztán nyomd meg a Keverés gombot.'}],
+  [/^Yes, that makes (.+)! Next colour\.$/,function(m){return 'Igen, ebből '+(HCOL[m[1]]||m[1])+' lesz! Következő szín.'}],
+  [/^That makes (.+)\. Look at the colour on the easel again\.$/,function(m){return 'Ebből '+(HCOL[m[1]]||m[1])+' lesz. Nézd meg újra a színt az állványon.'}],
+  [/^Make the same colour: (.+)\. Move the three sliders\.$/,function(m){return 'Készítsd el ugyanezt a színt: '+(HCOL[m[1]]||m[1])+'. Mozgasd a három csúszkát.'}],
+  [/^Great! That is (.+)\.$/,function(m){return 'Nagyszerű! Ez: '+(HCOL[m[1]]||m[1])+'.'}],
+  [/^You forgot: (.+)\.$/,function(m){return 'Elfelejtetted: '+m[1].split(', ').map(function(x){return HACT[x]||x}).join(', ')+'.'}],
+  [/^Too long! You are (\d+) minutes late for the 14:10 lesson\.$/,function(m){return 'Túl hosszú! '+m[1]+' percet késel a 14:10-es óráról.'}],
+  [/^Good plan! You have (\d+) minutes left\. Can you use them all\? Try again, or keep this plan\.$/,function(m){return 'Jó terv! Még '+m[1]+' perced van. Fel tudod használni mindet? Próbáld újra, vagy tartsd meg ezt a tervet.'}],
+  [/^You still have (\d+) minutes left\. Try again, or keep this plan\.$/,function(m){return 'Még mindig '+m[1]+' perced van. Próbáld újra, vagy tartsd meg ezt a tervet.'}],
+  [/^OK, you are back on time and you have (\d+) minutes left\.$/,function(m){return 'Rendben, időben visszaértél, és még '+m[1]+' perced maradt.'}],
+  [/^Each team needs 4 players\. The red team has (\d+)\.$/,function(m){return 'Mindkét csapatban 4 játékos kell. A piros csapatban '+m[1]+' van.'}],
+  [/^The rope moves to the (red|blue) team\. They are stronger\. Change the teams\.$/,function(m){return 'A kötél a '+(m[1]==='red'?'piros':'kék')+' csapat felé mozdul. Ők erősebbek. Változtasd meg a csapatokat.'}],
+  [/^Add all the numbers\. The total is (\d+)\. Each team needs (\d+)\.$/,function(m){return 'Add össze az összes számot. Az összeg '+m[1]+'. Mindkét csapatnak '+m[2]+' kell.'}],
+  [/^Find the right rooms and solve (\d+) puzzles\. A wrong try costs minutes\. Your notebook keeps the facts you learn\.$/,function(m){return 'Keresd meg a helyes termeket, és oldd meg a '+m[1]+' feladványt. A rossz próba perceket veszít. A jegyzetfüzeted megőrzi a tanult tényeket.'}]
+];
+function hu(t){
+  if(!t)return '';
+  t=String(t);var stars='',m=t.match(/\s+([★☆]+)$/);if(m){stars=' '+m[1];t=t.slice(0,m.index)}
+  var cost='',c=t.match(/ \(\+(\d+) min\)$/);if(c){cost=' (+'+c[1]+' perc)';t=t.slice(0,c.index)}
+  var pre='';if(t.indexOf('Hint: ')===0){pre='Tipp: ';t=t.slice(6)}
+  var k=nk(t).split(esc(S.name||'Alex')).join('{n}'),r=HUM[k],i;
+  if(r===undefined){for(i=0;i<HUP.length&&r===undefined;i++){var mm=k.match(HUP[i][0]);if(mm)r=HUP[i][1](mm)}}
+  if(r===undefined)return '';
+  return pre+r.split('{n}').join(esc(S.name||'Alex'))+cost+stars;
+}
+function huSm(t){var h=hu(t);return h?'<small class="hu">'+h+'</small>':''}
+function addHuAfter(el){
+  if(!el)return;var nx=el.nextElementSibling;if(nx&&nx.classList.contains('huaf'))nx.remove();
+  var h=hu(el.innerHTML);if(!h)return;
+  var p=document.createElement('p');p.className='hu huaf';p.innerHTML=h;el.parentNode.insertBefore(p,el.nextSibling);
+}
+function huDecorate(root){
+  root.querySelectorAll('p.def,p.task,.intro p').forEach(function(el){
+    addHuAfter(el);
+  });
+  if(root===card&&GLOSS[S.step+1]){
+    var anc=root.querySelector('p.def')||root.querySelector('.intro p:last-of-type');
+    if(anc){var g=document.createElement('p');g.className='hu glos';g.textContent='Szavak ezen az oldalon: '+GLOSS[S.step+1].join(' · ');
+      var hx=anc.nextElementSibling;(hx&&hx.classList.contains('huaf')?hx:anc).after(g)}
+  }
+  root.querySelectorAll('button.btn,button.chip,button.act span').forEach(function(el){
+    if(el.querySelector&&el.querySelector('.hu'))return;
+    var h=hu(el.tagName==='SPAN'?el.textContent:el.textContent);if(h)el.insertAdjacentHTML('beforeend','<small class="hu">'+h+'</small>');
+  });
+  if(root.matches&&root.matches('button.btn')&&!root.querySelector('.hu')){var h2=hu(root.textContent);if(h2)root.insertAdjacentHTML('beforeend','<small class="hu">'+h2+'</small>')}
+}
+
+function talk(sp,line){return '<div class="talk"><div class="av">'+avatar(sp)+'</div><div class="bubble"><p class="who">'+sp.n+'<span>'+sp.r+'</span></p><p class="say">'+line+'</p>'+huSm(line).replace('<small','<p').replace('</small>','</p>')+'</div></div>'}
+function frame(sp,line,body){
+  var st=STEPS[S.step];
+  return '<div class="meta"><span class="tag">Puzzle '+(S.step+1)+' of '+NP+'</span><span>'+st.t+' · '+st.place+'</span></div>'+talk(sp,line)+body+'<p class="fb" id="fb" role="status"></p><div class="row"><button class="btn ghost" id="hint" type="button">Hint</button></div>';
+}
+function wireHint(t){var h=$('hint');if(h)h.onclick=function(){if(S.locked)return;S.hint=true;fb('Hint: '+t,'')}}
+function setCard(h){card.innerHTML=h;huDecorate(card)}
+function kd(el){return function(e){if(e.key==='Enter'||e.key===' '){e.preventDefault();el.onclick()}}}
+
+/* ---------- drawing helpers ---------- */
+function cub(x,y,w,h,dx,dy,c){
+  return '<polygon points="'+x+','+y+' '+(x+w)+','+y+' '+(x+w+dx)+','+(y-dy)+' '+(x+dx)+','+(y-dy)+'" fill="'+c.top+'"/>'+
+  '<polygon points="'+(x+w)+','+y+' '+(x+w+dx)+','+(y-dy)+' '+(x+w+dx)+','+(y+h-dy)+' '+(x+w)+','+(y+h)+'" fill="'+c.side+'"/>'+
+  '<rect x="'+x+'" y="'+y+'" width="'+w+'" height="'+h+'" fill="'+c.front+'"/>';
+}
+function sideWin(x,y,w,dx,dy,t0,t1,v0,v1,fill){
+  var X0=x+w+t0*dx,X1=x+w+t1*dx,Y0=y+v0-t0*dy,Y1=y+v0-t1*dy,H=v1-v0;
+  return '<polygon points="'+X0+','+Y0+' '+X1+','+Y1+' '+X1+','+(Y1+H)+' '+X0+','+(Y0+H)+'" fill="'+fill+'"/>';
+}
+function tree(x,y,r){
+  return '<rect x="'+(x-4)+'" y="'+(y+r-8)+'" width="8" height="'+(r+12)+'" fill="#6b4a2f"/><circle cx="'+x+'" cy="'+y+'" r="'+r+'" fill="#3d7a58"/><circle cx="'+(x-r*0.55)+'" cy="'+(y+r*0.3)+'" r="'+(r*0.65)+'" fill="#356c4d"/><circle cx="'+(x+r*0.55)+'" cy="'+(y+r*0.25)+'" r="'+(r*0.7)+'" fill="#4a8d66"/>';
+}
+function person(hood,sc,hair){
+  sc=sc||1;var skin='#f0c29a';hair=hair||'#3a2a20';
+  return '<g transform="scale('+sc+')"><ellipse cx="0" cy="1" rx="14" ry="4" fill="rgba(0,0,0,.28)"/><rect x="-18" y="-50" width="8" height="24" rx="3" fill="#ee7d52"/><rect x="-8" y="-28" width="7" height="28" rx="3" fill="#38457a"/><rect x="1" y="-28" width="7" height="28" rx="3" fill="#38457a"/><rect x="-12" y="-54" width="24" height="32" rx="8" fill="'+hood+'"/><rect x="-16" y="-52" width="7" height="22" rx="3" fill="'+hood+'"/><rect x="9" y="-52" width="7" height="22" rx="3" fill="'+hood+'"/><circle cx="0" cy="-64" r="10" fill="'+skin+'"/><path d="M-10.5 -65a10.5 10.5 0 0 1 21 0z" fill="'+hair+'"/><circle cx="3.5" cy="-63" r="1.6" fill="#0a1513"/></g>';
+}
+function meG(x,y,sc){return '<g class="me" id="me" style="transform:translate('+x+'px,'+y+'px)">'+person(HOODS[S.hood],sc)+'</g>'}
+function walkMe(x,y){var m=$('me');if(m)m.style.transform='translate('+x+'px,'+y+'px)'}
+
+/* ---------- the yard (outside) ---------- */
+var YARD={
+  entrance:{n:'The main entrance',tx:200,ty:240,walk:[200,334]},
+  ramp:{n:'The ramp',tx:350,ty:290,walk:[352,352]},
+  school:{n:'The school building',tx:130,ty:110,walk:[100,344]},
+  white:{n:'The White House',tx:515,ty:150,walk:[510,300]},
+  workshop:{n:'The art workshop',tx:704,ty:108,walk:[700,240]},
+  kiosk:{n:'The snack bar',tx:598,ty:440,walk:[600,516]},
+  gate:{n:'The main gate',tx:398,ty:380,walk:[398,442]},
+  lawn:{n:'The green area',tx:595,ty:344,walk:[595,396]},
+  park:{n:'The trees and bench',tx:160,ty:446,walk:[160,504]}
+};
+function yardSVG(o){
+  var me=o.me||[398,442];
+  var h=function(id,inner){return '<g class="hit" data-id="'+id+'"'+(o.noTap?'':' tabindex="0" role="button" aria-label="'+YARD[id].n+'"')+'>'+inner+'</g>'};
+  var s='<svg viewBox="0 0 800 520" role="img" aria-label="Katedra High School and its yard. Every building is drawn as a box.">';
+  s+='<defs><linearGradient id="sky" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#8fcdf0"/><stop offset="1" stop-color="#dcf1fb"/></linearGradient><pattern id="brick" width="14" height="8" patternUnits="userSpaceOnUse"><path d="M0 7.5H14M7 0V7.5" stroke="rgba(0,0,0,.14)" stroke-width="1" fill="none"/></pattern></defs>';
+  s+='<rect width="800" height="300" fill="url(#sky)"/>';
+  s+='<g fill="#fff" opacity=".85"><ellipse cx="560" cy="48" rx="46" ry="12"/><ellipse cx="590" cy="38" rx="28" ry="11"/><ellipse cx="170" cy="30" rx="40" ry="10"/><ellipse cx="195" cy="22" rx="22" ry="9"/></g>';
+  s+='<rect y="250" width="800" height="270" fill="#62a872"/>';
+  s+=tree(612,120,32)+tree(786,196,34);
+  s+='<polygon points="'+P([[10,312],[790,312],[800,432],[0,432]])+'" fill="#c8cbc4"/>';
+  s+='<g stroke="rgba(0,0,0,.08)" stroke-width="2"><path d="M130 312L96 432M260 312L240 432M400 312V432M540 312L560 432M670 312L704 432"/></g>';
+  s+=h('workshop',cub(648,128,112,88,26,14,{front:'#7fa0c0',side:'#5d7e9f',top:'#9bb9d6'})+
+    '<rect x="662" y="140" width="56" height="42" rx="3" fill="#e8f4fb" stroke="#46647f" stroke-width="3"/><path d="M690 140V182M662 161H718" stroke="#46647f" stroke-width="2"/><rect x="728" y="164" width="22" height="52" fill="#3c5a78"/><circle cx="668" cy="204" r="7" fill="#e23b3b"/><circle cx="684" cy="209" r="6" fill="#f6d33a"/><circle cx="700" cy="203" r="6" fill="#2b6fe0"/><circle cx="712" cy="209" r="4" fill="#3fa34d"/>');
+  var wh=cub(432,172,168,98,34,19,{front:'#f4f1ea',side:'#d4cfc2',top:'#fbfaf6'})+'<rect x="432" y="168" width="168" height="5" fill="#8d887c"/>';
+  for(var c=0;c<4;c++)wh+='<rect x="'+(444+c*38)+'" y="184" width="26" height="26" fill="#a9c8dd" stroke="#8d887c" stroke-width="2"/>';
+  wh+='<rect x="444" y="226" width="26" height="26" fill="#a9c8dd" stroke="#8d887c" stroke-width="2"/><rect x="558" y="226" width="26" height="26" fill="#a9c8dd" stroke="#8d887c" stroke-width="2"/><rect x="504" y="230" width="30" height="40" fill="#7a5a3a"/><circle cx="529" cy="251" r="2" fill="#f4cd5c"/>';
+  wh+=sideWin(432,172,168,34,19,0.2,0.45,14,44,'#a9c8dd')+sideWin(432,172,168,34,19,0.2,0.45,54,84,'#a9c8dd')+sideWin(432,172,168,34,19,0.6,0.85,14,44,'#a9c8dd')+sideWin(432,172,168,34,19,0.6,0.85,54,84,'#a9c8dd');
+  wh+='<path d="M540 160V112" stroke="#6b6b6b" stroke-width="3"/><path d="M540 112l26 8-26 8z" fill="#ee7d52"/>';
+  s+=h('white',wh);
+  s+='<rect x="403" y="118" width="5" height="212" fill="#2c3640"/><path d="M394 112h24l-4 10h-16z" fill="#2c3640"/>';
+  var sc=cub(24,72,330,238,58,32,{front:'#b9523b',side:'#8c3a2a',top:'#d06a52'})+'<rect x="24" y="72" width="330" height="238" fill="url(#brick)"/>';
+  var r,k;
+  for(r=0;r<4;r++){
+    for(k=0;k<7;k++){sc+='<rect x="'+(36+k*46)+'" y="'+(80+r*42)+'" width="28" height="26" fill="#eaf4fb" stroke="#f4f1ea" stroke-width="3"/><path d="M'+(50+k*46)+' '+(80+r*42)+'V'+(106+r*42)+'" stroke="#9ab" stroke-width="2"/>'}
+    sc+=sideWin(24,72,330,58,32,0.12,0.4,8+r*42,34+r*42,'#a9c8dd')+sideWin(24,72,330,58,32,0.58,0.86,8+r*42,34+r*42,'#a9c8dd');
+  }
+  sc+='<rect x="24" y="248" width="330" height="62" fill="rgba(0,0,0,.12)"/><rect x="24" y="246" width="330" height="3" fill="#f4f1ea" opacity=".6"/>';
+  [36,88,282].forEach(function(x){sc+='<rect x="'+x+'" y="262" width="44" height="34" fill="#eaf4fb" stroke="#f4f1ea" stroke-width="3"/>'});
+  s+=h('school',sc);
+  s+=h('entrance','<rect x="130" y="240" width="140" height="74" fill="transparent"/>'+cub(136,306,138,8,16,8,{front:'#aab0b0',side:'#8a9090',top:'#c4c9c8'})+'<rect x="146" y="258" width="4" height="48" fill="#6b5a46"/><rect x="252" y="258" width="4" height="48" fill="#6b5a46"/><rect x="176" y="262" width="48" height="44" fill="#1f3a44"/><rect x="180" y="266" width="18" height="40" fill="#7fb6d6"/><rect x="202" y="266" width="18" height="40" fill="#7fb6d6"/>'+cub(140,246,122,12,18,10,{front:'#f0a63c',side:'#c9831f',top:'#f8c466'}));
+  var ramp='<rect x="270" y="270" width="140" height="86" fill="transparent"/><polygon points="'+P([[276,300],[400,340],[400,350],[276,310]])+'" fill="#9aa3a6" stroke="#6f787b" stroke-width="2"/><path d="M276 282L400 322" stroke="#26363c" stroke-width="3"/>';
+  for(k=0;k<5;k++){var px=276+k*31,ry=282+(px-276)*0.3226,gy=300+(px-276)*0.3226;ramp+='<path d="M'+px+' '+ry+'V'+gy+'" stroke="#26363c" stroke-width="3"/>'}
+  ramp+='<rect x="296" y="252" width="26" height="26" rx="4" fill="#2b6fe0"/><circle cx="308" cy="260" r="3" fill="#fff"/><path d="M308 264v6h6M303 266h7" stroke="#fff" stroke-width="2" fill="none"/><circle cx="307" cy="271" r="4" stroke="#fff" fill="none" stroke-width="1.5"/>';
+  s+=h('ramp',ramp);
+  s+=h('lawn','<path d="M470 352q10-20 60-20h150q40 0 42 30 0 40-60 52H520q-50 0-50-62z" fill="#7cc08a"/><circle cx="520" cy="372" r="4" fill="#f4cd5c"/><circle cx="560" cy="392" r="4" fill="#ff8593"/><circle cx="640" cy="366" r="4" fill="#f1ede2"/><circle cx="672" cy="388" r="4" fill="#f4cd5c"/><circle cx="600" cy="354" r="4" fill="#ff8593"/>');
+  s+='<g fill="#2f4a3b">';
+  for(var fx=0;fx<800;fx+=22){if(fx>330&&fx<466)continue;s+='<rect x="'+fx+'" y="408" width="4" height="26"/>'}
+  s+='<rect x="0" y="414" width="340" height="3"/><rect x="0" y="426" width="340" height="3"/><rect x="460" y="414" width="340" height="3"/><rect x="460" y="426" width="340" height="3"/></g>';
+  s+=h('gate','<rect x="330" y="388" width="140" height="52" fill="transparent"/>'+cub(334,392,16,42,6,4,{front:'#a8503a',side:'#8a3f2c',top:'#c4684e'})+cub(450,392,16,42,6,4,{front:'#a8503a',side:'#8a3f2c',top:'#c4684e'})+'<polygon points="350,430 350,402 376,394 376,420" fill="#2f4a3b" opacity=".9"/><polygon points="450,430 450,402 424,394 424,420" fill="#2f4a3b" opacity=".9"/>');
+  s+='<rect y="436" width="800" height="84" fill="#cfd3cb"/>';
+  var park='<rect x="0" y="440" width="330" height="80" fill="#4f9863"/>';
+  [[50,470,30],[140,484,26],[250,470,30]].forEach(function(t){park+=tree(t[0],t[1],t[2])});
+  park+='<rect x="172" y="498" width="60" height="6" fill="#8a5a36"/><rect x="174" y="488" width="56" height="8" fill="#a97a4a"/>';
+  s+=h('park',park);
+  var ks=cub(560,454,76,42,18,10,{front:'#f4cd5c',side:'#d0a93a',top:'#f9e28f'})+'<rect x="552" y="440" width="100" height="60" fill="transparent"/>';
+  for(k=0;k<6;k++)ks+='<rect x="'+(556+k*14)+'" y="452" width="14" height="14" fill="'+(k%2?'#ffffff':'#d33b3b')+'"/>';
+  ks+='<rect x="572" y="470" width="44" height="16" fill="#263a40"/><rect x="568" y="486" width="52" height="5" fill="#8a5a36"/>';
+  s+=h('kiosk',ks);
+  s+=meG(me[0],me[1],.9);
+  return s+'</svg>';
+}
+function mountYard(o){
+  o=o||{};stage.innerHTML=yardSVG(o);
+  if(!o.noTap){
+    stage.querySelectorAll('.hit').forEach(function(el){
+      var id=el.getAttribute('data-id');
+      el.onclick=function(){if(S.locked)return;o.onTap(id)};
+      el.onkeydown=kd(el);
+    });
+  }
+}
+function yardWalk(id){var p=YARD[id].walk;walkMe(p[0],p[1])}
+function yardTag(id){
+  var svg=stage.querySelector('svg');if(!svg||svg.querySelector('[data-tag="'+id+'"]'))return;
+  var y=YARD[id],w=y.n.length*9.4+24;
+  svg.insertAdjacentHTML('beforeend','<g data-tag="'+id+'" pointer-events="none"><rect x="'+(y.tx-w/2)+'" y="'+(y.ty-15)+'" width="'+w+'" height="30" rx="8" fill="#0f1c1a" stroke="#f4cd5c" stroke-width="2"/><text x="'+y.tx+'" y="'+(y.ty+6)+'" text-anchor="middle" font-family="DM Mono,monospace" font-size="16" fill="#f1ede2">'+y.n+'</text></g>');
+}
+
+/* ---------- the school building (cut open) ---------- */
+function ord(n){return ['','1st','2nd','3rd','4th'][n]}
+function buildSVG(sel,inter){
+  var dx=100,dy=56,FL=[[4,60,72],[3,132,72],[2,204,72],[1,276,72],[0,348,80]];
+  var s='<svg viewBox="0 0 800 440" role="img" aria-label="The school building drawn as a box and cut open, so you can see the ground floor and four floors above it">';
+  s+='<defs><pattern id="brick2" width="14" height="8" patternUnits="userSpaceOnUse"><path d="M0 7.5H14M7 0V7.5" stroke="rgba(0,0,0,.14)" stroke-width="1" fill="none"/></pattern></defs>';
+  s+='<rect width="800" height="440" fill="#bfe4f6"/><rect y="420" width="800" height="20" fill="#62a872"/>';
+  s+='<polygon points="70,60 540,60 640,4 170,4" fill="#d06a52"/>';
+  FL.forEach(function(f){
+    var y=f[1],h=f[2];
+    s+='<polygon points="540,'+y+' 640,'+(y-dy)+' 640,'+(y+h-dy)+' 540,'+(y+h)+'" fill="#8c3a2a"/>';
+    s+=sideWin(70,y,470,dx,dy,0.15,0.38,14,h-22,'#a9c8dd')+sideWin(70,y,470,dx,dy,0.55,0.78,14,h-22,'#a9c8dd');
+  });
+  FL.forEach(function(f){
+    var n=f[0],y=f[1],h=f[2],on=(sel===n);
+    s+='<g class="floor'+(inter?' hit':'')+(on?' sel':'')+'" data-f="'+n+'"'+(inter?' tabindex="0" role="button" aria-label="'+(n===0?'Ground floor':ord(n)+' floor')+'"':'')+'>';
+    s+='<rect x="70" y="'+y+'" width="470" height="'+h+'" fill="#efe0c0"/><rect x="70" y="'+(y+h-8)+'" width="470" height="8" fill="#8a6a4a"/><rect x="70" y="'+y+'" width="470" height="4" fill="#6a2c20"/>';
+    for(var i=0;i<5;i++)s+='<rect x="'+(96+i*70)+'" y="'+(y+h-8-46)+'" width="32" height="46" rx="2" fill="#b99c6a"/><circle cx="'+(122+i*70)+'" cy="'+(y+h-8-22)+'" r="2.5" fill="#6a2c20"/>';
+    if(n===0)s+='<rect x="470" y="360" width="56" height="60" fill="#1f3a44"/><rect x="474" y="364" width="22" height="56" fill="#7fb6d6"/><rect x="500" y="364" width="22" height="56" fill="#7fb6d6"/>'+cub(458,350,80,8,12,7,{front:'#f0a63c',side:'#c9831f',top:'#f8c466'});
+    s+='<circle cx="36" cy="'+(y+h/2)+'" r="17" fill="'+(on?'#ee7d52':'#1f3a36')+'" stroke="#f1ede2" stroke-width="2"/><text x="36" y="'+(y+h/2+7)+'" text-anchor="middle" font-family="Rubik,sans-serif" font-weight="800" font-size="20" fill="'+(on?'#2a0d04':'#f1ede2')+'">'+(n===0?'G':n)+'</text></g>';
+  });
+  s+='<rect x="70" y="60" width="470" height="368" fill="none" stroke="#6a2c20" stroke-width="4" pointer-events="none"/>';
+  if(sel!==null&&sel!==undefined){var f=FL.filter(function(x){return x[0]===sel})[0];s+='<rect x="70" y="'+f[1]+'" width="470" height="'+f[2]+'" fill="none" stroke="#f4cd5c" stroke-width="5" pointer-events="none"/>'}
+  s+='<text x="716" y="150" text-anchor="middle" font-family="DM Mono,monospace" font-size="17" fill="#2a4a5a">Tap a floor</text><text x="716" y="174" text-anchor="middle" font-family="DM Mono,monospace" font-size="17" fill="#2a4a5a">to look inside</text>';
+  return s+'</svg>';
+}
+
+/* ---------- floor plans ---------- */
+var PLAN={
+  0:{name:'Ground floor',end:780,door:1,rooms:[
+    {id:'g-kit',l:['Student','kitchen'],row:'u',c:1},{id:'g-meet',l:['Meeting','room'],row:'u',c:2},{id:'g-tech',l:['Technician','office'],row:'u',c:3},{id:'g-lift',l:['Lift'],row:'u',c:4},
+    {id:'g-c1',l:['Classroom'],row:'l',c:1},{id:'g-c2',l:['Classroom'],row:'l',c:2},{id:'g-lib',l:['Small','library'],row:'l',c:3},{id:'g-it',l:['IT lab'],row:'l',c:4},{id:'g-rec',l:['Reception','+ vending'],row:'l',c:5}]},
+  1:{name:'1st floor',end:780,rooms:[
+    {id:'f1-c1',l:['Classroom'],row:'u',c:1},{id:'f1-c2',l:['Classroom'],row:'u',c:2},{id:'f1-wg',l:['WC','girls’'],row:'u',c:3},{id:'f1-wb',l:['WC','boys’'],row:'u',c:4},
+    {id:'f1-c3',l:['Classroom'],row:'l',c:1},{id:'f1-c4',l:['Classroom'],row:'l',c:2},{id:'f1-c5',l:['Classroom'],row:'l',c:3}]},
+  2:{name:'2nd floor',end:640,rooms:[
+    {id:'f2-to',l:['Teachers’','office'],row:'u',c:1},{id:'f2-wc',l:['Teachers’','toilets'],row:'u',c:2,s:2},{id:'f2-c1',l:['Classroom'],row:'u',c:4},
+    {id:'f2-c2',l:['Classroom'],row:'l',c:1},{id:'f2-as1',l:['Assistant','principal'],row:'l',c:2},{id:'f2-c3',l:['Classroom'],row:'l',c:3},{id:'f2-lo',l:['Lounge','area'],row:'l',c:4},
+    {id:'f2-st',l:['Staff','room'],row:'t',c:5}]},
+  3:{name:'3rd floor',end:780,rooms:[
+    {id:'f3-it1',l:['IT room'],row:'u',c:1},{id:'f3-c1',l:['Classroom'],row:'u',c:2},{id:'f3-wg',l:['WC','girls’'],row:'u',c:3},{id:'f3-wb',l:['WC','boys’'],row:'u',c:4},{id:'f3-sup',l:['Supply','room'],row:'u',c:5},
+    {id:'f3-c2',l:['Classroom'],row:'l',c:1},{id:'f3-c3',l:['Classroom'],row:'l',c:2},{id:'f3-it2',l:['IT room'],row:'l',c:3}]},
+  4:{name:'4th floor',end:780,rooms:[
+    {id:'f4-c1',l:['Classroom'],row:'u',c:1},{id:'f4-c2',l:['Classroom'],row:'u',c:2},{id:'f4-cl',l:['Classroom'],row:'u',c:3},{id:'f4-art',l:['Art','studio'],row:'u',c:4},{id:'f4-gr',l:['Graphic','studio'],row:'u',c:5},
+    {id:'f4-wg',l:['WC','girls’'],row:'l',c:1},{id:'f4-wb',l:['WC','boys’'],row:'l',c:2},{id:'f4-sup',l:['Supply','room'],row:'l',c:3}]}
+};
+function findRoom(f,id){var rs=PLAN[f].rooms;for(var i=0;i<rs.length;i++)if(rs[i].id===id)return rs[i];return null}
+function geom(r){
+  var sp=r.s||1,x=116+(r.c-1)*132,w=126*sp+6*(sp-1),y,h;
+  if(r.row==='u'){y=44;h=124}else if(r.row==='l'){y=212;h=124}else{y=44;h=292}
+  return {x:x,y:y,w:w,h:h,cx:x+w/2,cy:y+h/2};
+}
+function planSVG(f,o){
+  var D=PLAN[f],s='<svg viewBox="0 0 800 380" role="img" aria-label="Floor plan of the '+D.name+'">';
+  s+='<defs><pattern id="grid" width="20" height="20" patternUnits="userSpaceOnUse"><path d="M20 0H0V20" fill="none" stroke="rgba(158,208,240,.07)"/></pattern></defs>';
+  s+='<rect width="800" height="380" fill="#12324a"/><rect width="800" height="380" fill="url(#grid)"/><rect x="8" y="8" width="784" height="364" rx="8" fill="none" stroke="#9ed0f0" stroke-width="3"/>';
+  s+='<text x="20" y="32" font-family="DM Mono,monospace" font-size="17" fill="#9ed0f0">'+D.name.toUpperCase()+'</text>';
+  s+='<rect x="16" y="120" width="88" height="140" rx="4" fill="rgba(158,208,240,.10)" stroke="#9ed0f0" stroke-width="2"/>';
+  for(var k=1;k<8;k++)s+='<path d="M16 '+(120+k*17.5)+'H104" stroke="#9ed0f0" stroke-width="1.5" opacity=".6"/>';
+  s+='<text x="60" y="197" text-anchor="middle" font-family="Atkinson Hyperlegible,sans-serif" font-weight="700" font-size="19" fill="#dff1ff" stroke="#12324a" stroke-width="5" paint-order="stroke">Stairs</text>';
+  s+='<rect x="108" y="172" width="'+(D.end-108)+'" height="36" fill="rgba(255,255,255,.05)"/><text x="'+(120+(D.end-108)/2)+'" y="196" text-anchor="middle" font-family="DM Mono,monospace" font-size="14" fill="rgba(223,241,255,.45)">CORRIDOR</text>';
+  if(D.door)s+='<polygon points="792,190 770,176 770,185 748,185 748,195 770,195 770,204" fill="#ee7d52"/><text x="742" y="195" text-anchor="end" font-family="DM Mono,monospace" font-size="13" fill="#ee7d52">ENTRANCE</text>';
+  D.rooms.forEach(function(r){
+    var g=geom(r),hide=o.hide&&o.hide[r.id]&&!o.reveal,lines=hide?['Room','?']:r.l;
+    s+='<g class="room hit'+(o.good===r.id?' good':'')+'" data-room="'+r.id+'" tabindex="0" role="button" aria-label="'+(hide?'Room':r.l.join(' '))+'"><rect class="rm" x="'+g.x+'" y="'+g.y+'" width="'+g.w+'" height="'+g.h+'" rx="6"/>';
+    lines.forEach(function(t,i){s+='<text x="'+g.cx+'" y="'+(g.cy-(lines.length-1)*12+i*25+(g.row==='t'?0:-6))+'">'+t+'</text>'});
+    s+='</g>';
+  });
+  if(o.bracket)s+='<path d="M384 40V33H766V40" fill="none" stroke="#f4cd5c" stroke-width="2"/><text x="575" y="26" text-anchor="middle" font-family="DM Mono,monospace" font-size="15" fill="#f4cd5c">Small corridor ends here</text>';
+  s+='<g class="me" id="me" style="transform:translate(62px,256px)">'+person(HOODS[S.hood],.7)+'</g>';
+  return s+'</svg>';
+}
+function liftHTML(cur){
+  var b=[['b','Building'],['4','4'],['3','3'],['2','2'],['1','1'],['0','G']];
+  return '<div class="liftbar" role="group" aria-label="Choose a floor"><span class="liftlab">Floor</span>'+b.map(function(x){return '<button type="button" data-lift="'+x[0]+'" class="'+(String(cur)===x[0]?'on':'')+'" aria-label="'+(x[0]==='b'?'Show the whole building':(x[0]==='0'?'Ground floor':'Floor '+x[0]))+'">'+x[1]+'</button>'}).join('')+'</div>';
+}
+function mountExplore(cfg){
+  var ex={floor:null};
+  function bind(){
+    stage.querySelectorAll('[data-f]').forEach(function(el){el.onclick=function(){showPlan(+el.getAttribute('data-f'))};el.onkeydown=kd(el)});
+    stage.querySelectorAll('[data-room]').forEach(function(el){el.onclick=function(){if(S.locked)return;cfg.onRoom(el.getAttribute('data-room'),ex)};el.onkeydown=kd(el)});
+    stage.querySelectorAll('[data-lift]').forEach(function(b){b.onclick=function(){var v=b.getAttribute('data-lift');if(v==='b')showBld();else showPlan(+v)}});
+  }
+  function showBld(){ex.floor=null;stage.innerHTML='<div class="pscroll">'+buildSVG(null,true)+'</div>'+liftHTML('b');bind()}
+  function showPlan(f,extra){
+    var old=stage.querySelector('.pscroll.plan'),sl=old?old.scrollLeft:0;
+    var o=extra||{};o.hide=cfg.hide;o.bracket=(f===4&&cfg.bracket);ex.floor=f;
+    stage.innerHTML='<div class="pscroll plan">'+planSVG(f,o)+'</div>'+liftHTML(f);
+    var sc=stage.querySelector('.pscroll.plan');if(sc)sc.scrollLeft=sl;
+    bind();
+  }
+  ex.good=function(id){
+    var r=findRoom(ex.floor,id),g=geom(r);
+    showPlan(ex.floor,{good:id,reveal:true});
+    requestAnimationFrame(function(){requestAnimationFrame(function(){walkMe(g.cx+28,g.y+g.h-8)})});
+  };
+  ex.bad=function(id){var el=stage.querySelector('[data-room="'+id+'"]');if(el){el.classList.add('bad');later(function(){el.classList.remove('bad')},700)}};
+  ex.label=function(id){var r=findRoom(ex.floor,id);return r?r.l.join(' '):'a room'};
+  showBld();
+  return ex;
+}
+
+/* ---------- puzzle 1: the main entrance ---------- */
+function stepGate(){
+  mountYard({onTap:function(id){
+    yardWalk(id);yardTag(id);
+    if(id==='entrance'||id==='ramp'){
+      solve('Yes! This is the main entrance. The ramp goes to it, so Zoe can come in too. The school has four floors above the ground floor.',['School day: lesson 1 starts at 08:15 and lesson 2 at 09:10. The long break is 09:55–10:10. Then every lesson is 45 minutes and every break is 10 minutes. Lunch is at 13:40.','The school building has 4 floors above the ground floor.','There is a ramp next to the main entrance.']);
+    }else if(id==='gate'){wrong('This is the main gate. Go into the yard first.',3)}
+    else if(id==='school'){wrong('This is a wall of the school. Look for the door with the ramp.',3)}
+    else wrong(YARD[id].n+'. This is not the school entrance.',3);
+  }});
+  setCard(frame(CAST.zoe,'Hi '+N()+'! I am Zoe, your new classmate. I use a wheelchair, so I need the ramp. Can you find the way in?','<p class="def">Tap the main entrance of the school. The ramp goes to it.</p>'));
+  wireHint('Look for the orange roof over the door. The ramp is next to it.');
+}
+
+/* ---------- puzzle 2: plan the way ---------- */
+var ROUTE=['Go in through the main entrance.','Walk to the stairs. They are opposite the entrance.','Go up to the 1st floor.','Turn right from the stairs.','Find your classroom. There are five on this floor.'];
+var DECOY=['Turn left after the reception and go to the library.','Go up to the 4th floor.'];
+function stepRoute(){
+  stage.innerHTML='<div class="pscroll">'+buildSVG(null,false)+'</div>';
+  S.pool=shuffle([0,1,2,3,4,5,6]);S.route=[];S.marks=null;
+  setCard(frame(CAST.zoe,'Our first lesson is English. It starts at 08:15. The classroom is on the 1st floor. Which way do we go?','<p class="def">Put the steps in the right order. You do not need all the steps. Tap a step to add it. Tap it again to take it away.</p><div class="route2"><div><p class="lab3">Steps</p><div class="stepsl" id="pool"></div></div><div><p class="lab3">Your way to the classroom</p><ol class="stepsl" id="route"></ol></div></div><div class="row"><button class="btn" id="chk" type="button">Check my way</button></div>'));
+  wireHint('You need five steps. The stairs are opposite the main entrance. You turn right from the stairs.');
+  var texts=ROUTE.concat(DECOY);
+  function draw(){
+    $('pool').innerHTML=S.pool.filter(function(i){return S.route.indexOf(i)<0}).map(function(i){return '<button type="button" class="stepb" data-i="'+i+'">'+esc(texts[i])+huSm(texts[i])+'</button>'}).join('');
+    $('route').innerHTML=S.route.map(function(i,p){var c=S.marks?(S.marks[p]?' ok':' no'):'';return '<li><button type="button" class="stepb'+c+'" data-r="'+p+'">'+(p+1)+'. '+esc(texts[i])+huSm(texts[i])+'</button></li>'}).join('');
+    $('pool').querySelectorAll('[data-i]').forEach(function(b){b.onclick=function(){if(S.locked)return;S.marks=null;S.route.push(+b.getAttribute('data-i'));draw()}});
+    $('route').querySelectorAll('[data-r]').forEach(function(b){b.onclick=function(){if(S.locked)return;S.marks=null;S.route.splice(+b.getAttribute('data-r'),1);draw()}});
+  }
+  draw();
+  $('chk').onclick=function(){
+    if(S.locked)return;
+    var ok=S.route.length===5&&S.route.every(function(v,i){return v===i});
+    if(ok){solve('That is the way! You are in your classroom at 08:05. The lesson starts at 08:15.',['The stairs are opposite the main entrance. The reception is on the left. The vending machines are behind it.','1st floor: 5 classrooms, a girls’ toilet and a boys’ toilet. Turn right from the stairs.']);return}
+    S.marks=S.route.map(function(v,i){return v===i});draw();
+    var bad=S.route.some(function(v){return v>4});
+    wrong(bad?'One step is not on the way.':(S.route.length<5?'You need more steps.':'Some steps are in the wrong order.'),2);
+  };
+}
+
+/* ---------- puzzle 3: the IT room ---------- */
+function stepITFind(){
+  var ex=mountExplore({onRoom:function(id,ex){
+    if(id==='f3-it2'){ex.good(id);solve('Yes! This IT room is opposite the toilets. The computers are ready.',['IT rooms: 1 IT lab on the ground floor (next to the small library) and 2 IT rooms on the 3rd floor.','3rd floor: one IT room is at the stairs. One IT room is opposite the toilets.'])}
+    else{
+      ex.bad(id);
+      if(id==='f3-it1')wrong('This IT room is next to the stairs. We need the room opposite the toilets.',3);
+      else if(id==='g-it')wrong('This is the IT lab on the ground floor. Our room is not on the ground floor.',3);
+      else wrong('This is a '+ex.label(id).toLowerCase()+'. It is not an IT room.',3);
+    }
+  }});
+  setCard(frame(CAST.kra,'Hi '+N()+'! Welcome to the IT lesson. Our room is opposite the toilets. It is not on the ground floor. See you there!','<p class="def">Use the floor buttons to look at the floors. Then tap the right room. Swipe sideways to see the whole plan.</p>'));
+  wireHint('Find the floors with IT rooms. Which room has toilets on the other side of the corridor?');
+}
+
+/* ---------- puzzle 4: program the robot ---------- */
+var GRID=['...#G','.#.#.','.#...','...#.','R..#.'];
+function stepRobot(){
+  var CELL=60,OX=250,OY=20,pos={r:4,c:0},prog=[],running=false;
+  var s='<svg viewBox="226 0 348 340" role="img" aria-label="A small grid with a robot, desks and a flag"><rect width="800" height="340" fill="#0f2a2c"/><rect x="236" y="6" width="328" height="328" rx="14" fill="#0b1f26" stroke="#365a53" stroke-width="3"/>';
+  for(var r=0;r<5;r++)for(var c=0;c<5;c++){
+    var x=OX+c*CELL,y=OY+r*CELL,ch=GRID[r][c];
+    s+='<rect x="'+x+'" y="'+y+'" width="'+CELL+'" height="'+CELL+'" fill="#10303a" stroke="#1f5560" stroke-width="2"/>';
+    if(ch==='#')s+=cub(x+8,y+18,40,30,8,6,{front:'#8b6b45',side:'#6d5133',top:'#a98458'})+'<rect x="'+(x+18)+'" y="'+(y+6)+'" width="20" height="14" rx="2" fill="#3a4a52"/><rect x="'+(x+20)+'" y="'+(y+8)+'" width="16" height="9" fill="#5cc8ff"/>';
+    if(ch==='G')s+='<path d="M'+(x+22)+' '+(y+52)+'V'+(y+8)+'" stroke="#f1ede2" stroke-width="3"/><path d="M'+(x+22)+' '+(y+8)+'l24 8-24 8z" fill="#ee7d52"/>';
+  }
+  s+='<g class="me" id="bot" style="transform:translate('+(OX+6)+'px,'+(OY+4*CELL+6)+'px);transition-duration:.3s"><rect x="0" y="6" width="48" height="40" rx="10" fill="#7fd6e0" stroke="#0a1513" stroke-width="3"/><rect x="21" y="-4" width="6" height="12" fill="#0a1513"/><circle cx="24" cy="-6" r="4" fill="#ee7d52"/><circle cx="15" cy="24" r="5" fill="#0a1513"/><circle cx="33" cy="24" r="5" fill="#0a1513"/><circle cx="16" cy="23" r="1.6" fill="#fff"/><circle cx="34" cy="23" r="1.6" fill="#fff"/></g></svg>';
+  stage.innerHTML=s;
+  setCard(frame(CAST.kra,'Welcome to the IT room, '+N()+'! Everybody has a computer here. Today we do a coding puzzle.','<p class="def">Tap the arrows to make a program. Then press Run. The robot must go to the flag. It cannot go through the desks.</p><div class="prog" id="prog" aria-live="polite"></div><div class="dirs" id="dirs"><button type="button" data-d="U" aria-label="Up">↑</button><button type="button" data-d="D" aria-label="Down">↓</button><button type="button" data-d="L" aria-label="Left">←</button><button type="button" data-d="R" aria-label="Right">→</button></div><div class="row"><button class="btn" id="run" type="button">Run</button><button class="btn ghost" id="undo" type="button">Undo</button><button class="btn ghost" id="clr" type="button">Clear</button></div>'));
+  wireHint('Think first. Go to the right, then go up. Look for a free way between the desks.');
+  var AR={U:'↑',D:'↓',L:'←',R:'→'};
+  function drawProg(cur){
+    var h='';for(var i=0;i<12;i++){h+=i<prog.length?'<span class="'+(i===cur?'run':'')+'">'+AR[prog[i]]+'</span>':'<span class="empty"></span>'}
+    $('prog').innerHTML=h;
+  }
+  function setBot(r,c){var b=$('bot');if(b)b.style.transform='translate('+(OX+c*CELL+6)+'px,'+(OY+r*CELL+6)+'px)'}
+  function lock(v){card.querySelectorAll('#dirs button,#run,#undo,#clr').forEach(function(b){b.disabled=v})}
+  drawProg(-1);
+  card.querySelectorAll('#dirs button').forEach(function(b){b.onclick=function(){if(S.locked||running||prog.length>=12)return;prog.push(b.getAttribute('data-d'));drawProg(-1)}});
+  $('undo').onclick=function(){if(S.locked||running)return;prog.pop();drawProg(-1)};
+  $('clr').onclick=function(){if(S.locked||running)return;prog=[];drawProg(-1);fb('','')};
+  $('run').onclick=function(){
+    if(S.locked||running)return;
+    if(!prog.length){fb('Add some arrows first.','bad');return}
+    running=true;lock(true);pos={r:4,c:0};setBot(4,0);fb('','');
+    var i=0,D={U:[-1,0],D:[1,0],L:[0,-1],R:[0,1]};
+    function fail(m){running=false;wrong(m,2);later(function(){pos={r:4,c:0};setBot(4,0);drawProg(-1);lock(false)},700)}
+    function stepRun(){
+      if(i>=prog.length){
+        if(GRID[pos.r][pos.c]==='G'){running=false;drawProg(-1);solve('The robot reached the flag! Your program works.',[])}
+        else fail('The robot stopped. It is not at the flag.');
+        return;
+      }
+      drawProg(i);var d=D[prog[i]],nr=pos.r+d[0],nc=pos.c+d[1];
+      if(nr<0||nr>4||nc<0||nc>4){fail('Bzzt! The robot hit the wall.');return}
+      if(GRID[nr][nc]==='#'){fail('Bzzt! The robot hit a desk.');return}
+      pos={r:nr,c:nc};setBot(nr,nc);i++;later(stepRun,reduce?60:420);
+    }
+    later(stepRun,200);
+  };
+}
+
+/* ---------- puzzle 5: the assistant headmaster ---------- */
+function stepAssist(){
+  mountExplore({onRoom:function(id,ex){
+    if(id==='f2-as1'){
+      ex.good(id);
+      card.insertAdjacentHTML('beforeend',talk(CAST.kapas,'Thank you, '+N()+'! The principal wants to meet you, too. Please go to the White House in the yard. It is the office building of the school.'));
+      solve('Right! This is the assistant principal’s office.',['2nd floor: the teachers’ office is next to the stairs. The assistant principal’s office is opposite the teachers’ toilets.','2nd floor: the big staff room is at the end of the small corridor. There is a lounge area with a table, chairs and a big couch.','The White House is the office building. The principal works there.']);
+    }else{
+      ex.bad(id);
+      if(id==='f2-to')wrong('This is the teachers’ office. It is next to the stairs, not opposite the toilets.',3);
+      else if(id==='f2-wc')wrong('These are the teachers’ toilets! The office is opposite them.',3);
+      else wrong('This is a '+ex.label(id).toLowerCase()+'. We need the office opposite the teachers’ toilets.',3);
+    }
+  }});
+  setCard(frame(CAST.kra,'Break time! Please take this note to the assistant principal’s office. It is on the 2nd floor, opposite the teachers’ toilets.','<p class="def">Use the floor buttons to go to the right floor. Then tap the assistant principal’s office. Swipe sideways to see the whole plan.</p>'));
+  wireHint('Find the floor with the teachers’ toilets. The office is on the other side of the corridor.');
+}
+
+/* ---------- puzzle 6: the White House ---------- */
+function stepWhite(){
+  mountYard({me:[420,350],onTap:function(id){
+    yardWalk(id);yardTag(id);
+    if(id==='white'){solve('Yes! This is the White House. It is the office building. The principal works here.',[])}
+    else if(id==='workshop')wrong('This is the art workshop. Look at the paint on the wall!',3);
+    else if(id==='school'||id==='entrance'||id==='ramp')wrong('This is the school building. The principal works in another building.',3);
+    else if(id==='kiosk')wrong('This is the snack bar. It sells food, not school papers.',3);
+    else wrong(YARD[id].n+'. There are no offices here.',3);
+  }});
+  setCard(frame(CAST.kapas,'The principal works in the office building in the yard. Please go there now!','<p class="def">Tap that building on the map. It is not the school. It is not the art workshop.</p>'));
+  wireHint('The art workshop has colourful paint on the wall. The other building is the one you need.');
+}
+
+/* ---------- puzzle 7: the lockbox ---------- */
+function stepLock(){
+  mountYard({noTap:true,me:[512,300]});
+  S.dig=[0,0,0];
+  setCard(frame(CAST.kiss,'Hello '+N()+'! The principal is in a meeting. Your welcome pack is in this box. The code has three numbers. Look in your notebook at the bottom of the page!','<p class="def">Number 1: The number of floors above the ground floor.<br>Number 2: The number of classrooms on the 1st floor.<br>Number 3: The number of IT rooms on the 3rd floor.</p><div class="lock" id="lock"></div><div class="row"><button class="btn" id="open" type="button">Open the box</button></div>'));
+  card.parentNode.appendChild($('nb'));$('nb').open=true;
+  wireHint('Scroll down to your notebook. All three numbers are there.');
+  var h='';
+  for(var i=0;i<3;i++)h+='<div class="dig"><button type="button" data-i="'+i+'" data-v="1" aria-label="Number '+(i+1)+' up">▲</button><output id="d'+i+'" aria-label="Number '+(i+1)+'">0</output><button type="button" data-i="'+i+'" data-v="-1" aria-label="Number '+(i+1)+' down">▼</button></div>';
+  $('lock').innerHTML=h;
+  $('lock').querySelectorAll('button').forEach(function(b){b.onclick=function(){
+    if(S.locked)return;var i=+b.getAttribute('data-i'),v=+b.getAttribute('data-v');
+    S.dig[i]=(S.dig[i]+v+10)%10;$('d'+i).textContent=S.dig[i];
+  }});
+  $('open').onclick=function(){
+    if(S.locked)return;
+    if(S.dig.join('')==='452'){
+      card.insertAdjacentHTML('beforeend',talk(CAST.prin,'Welcome to Katedra, '+N()+'! Here is your student card and your welcome pack. We are happy that you are here. Our school is friendly. Students and teachers say hello in the corridors, and everybody helps each other. Enjoy the rest of your day!'));
+      solve('Click! The box opens.',['You got a welcome pack from the principal in the White House.']);
+    }else wrong('The box stays closed. Check your notebook at the bottom of the page.',2);
+  };
+}
+
+/* ---------- puzzle 8: the art studio ---------- */
+function stepArtFind(){
+  mountExplore({bracket:true,hide:{'f4-cl':1,'f4-art':1,'f4-gr':1},onRoom:function(id,ex){
+    if(id==='f4-art'){
+      ex.good(id);
+      solve('Yes! This is the art studio. Mrs Norek is waiting.',['4th floor: there are three rooms at the end of the small corridor. They are a normal classroom, the art studio and the graphic studio with computers.']);
+    }else{
+      ex.bad(id);
+      if(id==='f4-gr')wrong('This room has computers. It is the graphic studio, not the art studio.',3);
+      else if(id==='f4-cl')wrong('This is a normal classroom. It is on the left.',3);
+      else wrong('This is a '+ex.label(id).toLowerCase()+'. Look at the three rooms at the end of the small corridor.',3);
+    }
+  }});
+  setCard(frame(CAST.norek,'Hello '+N()+'! The art lesson is on the top floor. Go to the small corridor. There are three rooms at the end. I am in the room on the right. It is not the room on the far right. That room has computers.','<p class="def">Go to the top floor (the 4th floor). Use the floor buttons. Then tap the room for the art lesson. Swipe sideways to see the whole plan.</p>'));
+  wireHint('Look at the three rooms under the yellow line: left, right and far right. The art studio is in the middle.');
+}
+
+/* ---------- puzzle 9: mix the paints ---------- */
+var POTS={red:'#e23b3b',yellow:'#f6d33a',blue:'#2b6fe0',white:'#f5f5f2'};
+var PAIRS={'blue+red':{c:'#8a3fb0',n:'purple'},'blue+white':{c:'#8cc4f0',n:'light blue'},'blue+yellow':{c:'#3fa34d',n:'green'},'red+white':{c:'#f4a0b8',n:'pink'},'red+yellow':{c:'#f08a1c',n:'orange'},'white+yellow':{c:'#fbf0a0',n:'light yellow'}};
+function mixSVG(t,sel,res){
+  var s='<svg viewBox="0 0 800 300" role="img" aria-label="Easel with a colour to match, four paint pots and a mixing bowl"><rect width="800" height="300" fill="#efe3c9"/><rect y="250" width="800" height="50" fill="#b99c6a"/>';
+  s+='<path d="M120 250L150 80M240 250L210 80" stroke="#7a4a2a" stroke-width="8"/><rect x="70" y="30" width="200" height="170" fill="#fff" stroke="#7a4a2a" stroke-width="6"/><circle cx="170" cy="115" r="56" fill="'+PAIRS[t.k].c+'"/><text x="170" y="192" text-anchor="middle" font-family="DM Mono,monospace" font-size="18" fill="#5a3a20">MATCH THIS</text>';
+  ['red','yellow','blue','white'].forEach(function(n,i){
+    var x=340+i*92,on=sel.indexOf(n)>=0;
+    s+='<g class="hit pot'+(on?' sel':'')+'" data-pot="'+n+'" tabindex="0" role="button" aria-pressed="'+on+'" aria-label="'+n+' paint"><rect x="'+(x-34)+'" y="180" width="68" height="64" rx="8" fill="#8a8f96" stroke="#4a4f56" stroke-width="3"/><ellipse cx="'+x+'" cy="180" rx="34" ry="11" fill="'+POTS[n]+'" stroke="#4a4f56" stroke-width="3"/><text x="'+x+'" y="222" text-anchor="middle" font-family="DM Mono,monospace" font-size="17" fill="#f1ede2">'+n+'</text></g>';
+  });
+  s+='<ellipse cx="730" cy="215" rx="60" ry="18" fill="#c9ccd0" stroke="#7a7f86" stroke-width="3"/>';
+  s+=res?'<circle cx="730" cy="150" r="52" fill="'+res+'" stroke="#5a3a20" stroke-width="3"/>':'<circle cx="730" cy="150" r="52" fill="none" stroke="#5a3a20" stroke-width="3" stroke-dasharray="8 8"/>';
+  s+='<text x="730" y="262" text-anchor="middle" font-family="DM Mono,monospace" font-size="18" fill="#5a3a20">YOUR MIX</text>';
+  return s+'</svg>';
+}
+function stepMix(){
+  var keys=shuffle(['blue+red','blue+white','blue+yellow','red+white','red+yellow']).slice(0,4),round=0,sel=[];
+  function draw(res){
+    S.mixKey=keys[round];
+    stage.innerHTML=mixSVG({k:keys[round]},sel,res);
+    stage.querySelectorAll('[data-pot]').forEach(function(el){
+      el.onclick=function(){
+        if(S.locked)return;var n=el.getAttribute('data-pot'),i=sel.indexOf(n);
+        if(i>=0)sel.splice(i,1);else if(sel.length<2)sel.push(n);else{sel.shift();sel.push(n)}
+        draw();$('mix').disabled=sel.length<2;$('mixinfo').textContent=sel.length?'Chosen: '+sel.join(' + '):'Choose two paints.';addHuAfter($('mixinfo'));
+      };
+      el.onkeydown=kd(el);
+    });
+  }
+  setCard(frame(CAST.norek,'Welcome to the art studio, '+N()+'! Our students have a lot of space and good materials here. Today we mix paint. Look at the colour. Which two paints make it?','<p class="def" id="rd">Colour 1 of 4. Tap two paint pots. Then press Mix.</p><p class="task" id="mixinfo">Choose two paints.</p><div class="row"><button class="btn" id="mix" type="button" disabled>Mix</button></div>'));
+  wireHint('Red and yellow make orange. Blue and yellow make green. Red and blue make purple. White makes a colour light.');
+  draw();
+  $('mix').onclick=function(){
+    if(S.locked||sel.length<2)return;
+    var k=sel.slice().sort().join('+'),m=PAIRS[k];
+    draw(m.c);
+    if(k===keys[round]){
+      round++;sel=[];
+      if(round>=4){solve('Beautiful! You mixed all the colours.',['The art studio is for the students. There is also an art workshop in the yard.']);return}
+      fb('Yes, that makes '+m.n+'! Next colour.','good');$('rd').textContent='Colour '+(round+1)+' of 4. Tap two paint pots. Then press Mix.';addHuAfter($('rd'));
+      later(function(){draw();$('mix').disabled=true;$('mixinfo').textContent='Choose two paints.'},900);
+    }else wrong('That makes '+m.n+'. Look at the colour on the easel again.',2);
+  };
+}
+
+/* ---------- puzzle 10: the kiosk ---------- */
+function stepKiosk(){
+  mountYard({me:[398,442],onTap:function(id){
+    yardWalk(id);yardTag(id);
+    if(id==='kiosk'){solve('Yes! The snack bar is outside the main gate, in the car park with many trees.',['The snack bar is outside the main gate, in the car park with many trees.','The lunch break is usually between 13:40 and 14:10.'])}
+    else if(id==='gate')wrong('This is the main gate. The snack bar is outside it, in the car park.',3);
+    else if(id==='park')wrong('These are trees and a bench. Look for the snack bar on the grey car park.',3);
+    else wrong(YARD[id].n+'. The snack bar is outside the school.',3);
+  }});
+  setCard(frame(CAST.zoe,'It is 13:40. Lunch time! I want a sandwich from the snack bar. It is outside the school, in the car park with many trees. Where is it?','<p class="def">Tap the snack bar on the map.</p>'));
+  wireHint('Look outside the main gate. The snack bar is the small yellow box with a red and white roof.');
+}
+
+/* ---------- puzzle 11: plan the lunch break ---------- */
+var ACTS=[
+  {id:'walk',t:'Walk to the snack bar',s:'Walk',m:4,req:1},
+  {id:'queue',t:'Wait in the queue',s:'Queue',m:8,req:1},
+  {id:'eat',t:'Eat your lunch on a bench in front of the snack bar',s:'Eat',m:7,req:1},
+  {id:'back',t:'Walk back to school',s:'Back',m:4,req:1},
+  {id:'drink',t:'Get a drink from the vending machines',s:'Drink',m:3},
+  {id:'couch',t:'Chat with friends on the couch',s:'Chat',m:6},
+  {id:'lib',t:'Visit the small library',s:'Library',m:9},
+  {id:'call',t:'Call home',s:'Call',m:4},
+  {id:'photo',t:'Take a photo in the art corridor',s:'Photo',m:5}
+];
+var DISP=['lib','walk','call','eat','couch','queue','photo','back','drink'];
+function tlSVG(sel){
+  var PX=20,X0=40,COL=['#5cc8ff','#f4cd5c','#7fd6a0','#b48cff','#ff8593','#ee7d52','#8fd3c4','#e0b0ff','#c8e06a'];
+  var s='<svg viewBox="0 0 800 200" role="img" aria-label="Timeline of your lunch break from 13:40 to 14:10"><rect width="800" height="200" fill="#0f2a2c"/>';
+  s+='<rect x="'+X0+'" y="70" width="600" height="56" rx="8" fill="#16403f" stroke="#365a53" stroke-width="2"/>';
+  for(var m=0;m<=30;m+=5){var x=X0+m*PX;s+='<path d="M'+x+' 60V70" stroke="#a8bdb5" stroke-width="2"/><text x="'+x+'" y="50" text-anchor="middle" font-family="DM Mono,monospace" font-size="20" fill="#a8bdb5">'+clock(820+m)+'</text>'}
+  var x2=X0,used=0;
+  sel.forEach(function(a){
+    var w=a.m*PX,i=ACTS.indexOf(a),end=x2+w,lim=X0+600;
+    s+='<rect x="'+x2+'" y="70" width="'+Math.min(w,Math.max(0,lim-x2))+'" height="56" fill="'+COL[i]+'" stroke="#0f2a2c" stroke-width="3"/>';
+    if(end>lim)s+='<rect x="'+Math.max(x2,lim)+'" y="70" width="'+(Math.min(end,800)-Math.max(x2,lim))+'" height="56" fill="#ff5a6e" stroke="#0f2a2c" stroke-width="3"/>';
+    if(w>=70)s+='<text x="'+(x2+w/2)+'" y="95" text-anchor="middle" font-family="Atkinson Hyperlegible,sans-serif" font-weight="700" font-size="22" fill="#0a1513">'+a.s+'</text><text x="'+(x2+w/2)+'" y="118" text-anchor="middle" font-family="DM Mono,monospace" font-size="19" fill="#0a1513">'+a.m+' min</text>';
+    else if(w>=50)s+='<text x="'+(x2+w/2)+'" y="103" text-anchor="middle" font-family="DM Mono,monospace" font-size="22" font-weight="500" fill="#0a1513">'+a.m+'</text>';
+    else s+='<text x="'+(x2+w/2)+'" y="103" text-anchor="middle" font-family="DM Mono,monospace" font-size="14" fill="#0a1513">'+a.m+'</text>';
+    x2+=w;used+=a.m;
+  });
+  s+='<path d="M'+(X0+600)+' 56V140" stroke="#ee7d52" stroke-width="3" stroke-dasharray="6 5"/><text x="'+(X0+600)+'" y="162" text-anchor="middle" font-family="DM Mono,monospace" font-size="20" fill="#ee7d52">14:10 next lesson</text>';
+  s+='<text x="'+X0+'" y="192" font-family="DM Mono,monospace" font-size="24" fill="'+(used>30?'#ff8593':'#f1ede2')+'">Minutes used: '+used+' / 30</text>';
+  return s+'</svg>';
+}
+function stepPlan(){
+  var sel=[];
+  function draw(){stage.innerHTML=tlSVG(sel)}
+  setCard(frame(CAST.zoe,'I am so hungry! Lunch is usually from 13:40 to 14:10. The next lesson starts at 14:10. We need a plan.','<p class="def">You have 30 minutes. Choose what you do. You must get lunch and be back at school at 14:10. Use all 30 minutes: not less, not more!</p><div class="acts" id="acts"></div><div class="row"><button class="btn" id="chk" type="button">Check my plan</button></div>'));
+  wireHint('You must walk there, wait, eat and walk back. Add the minutes of the four must-do things. Then find extra things that fit in the minutes left.');
+  var a=$('acts');
+  a.innerHTML=DISP.map(function(id){return ACTS.filter(function(x){return x.id===id})[0]}).map(function(x){return '<button type="button" class="act" aria-pressed="false" data-id="'+x.id+'"><span>'+x.t+'</span><b>'+x.m+' min</b></button>'}).join('');
+  huDecorate(a);
+  a.querySelectorAll('.act').forEach(function(b){b.onclick=function(){
+    if(S.locked)return;
+    var act=ACTS.filter(function(x){return x.id===b.getAttribute('data-id')})[0],i=sel.indexOf(act);
+    if(i>=0)sel.splice(i,1);else sel.push(act);
+    sel.sort(function(p,q){return ACTS.indexOf(p)-ACTS.indexOf(q)});
+    b.setAttribute('aria-pressed',i<0);draw();
+  }});
+  draw();
+  $('chk').onclick=function(){
+    if(S.locked)return;
+    var sum=sel.reduce(function(t,x){return t+x.m},0),miss=ACTS.filter(function(x){return x.req&&sel.indexOf(x)<0});
+    if(miss.length){wrong('You forgot: '+miss.map(function(x){return x.t.toLowerCase()}).join(', ')+'.',2);return}
+    if(sum>30){wrong('Too long! You are '+(sum-30)+' minutes late for the 14:10 lesson.',2);return}
+    if(sum===30){solve('Perfect! Exactly 30 minutes. You have lunch, a drink, a call home and you are back on time.',['Lunch: walk 4 min, queue 8 min, eat 7 min, walk back 4 min, drink 3 min and call home 4 min. That is 30 minutes.']);return}
+    if(!$('keep')){
+      fb('Good plan! You have '+(30-sum)+' minutes left. Can you use them all? Try again, or keep this plan.','');
+      var r=document.createElement('div');r.className='row';r.innerHTML='<button class="btn ghost" id="keep" type="button">Keep this plan</button>';card.insertBefore(r,$('chk').parentNode.nextSibling);huDecorate(r);
+      $('keep').onclick=function(){if(S.locked)return;S.cap=2;solve('OK, you are back on time and you have '+(30-sum)+' minutes left.',['Lunch is 30 minutes. You must walk to the snack bar, wait, eat and walk back.'])};
+    }else fb('You still have '+(30-sum)+' minutes left. Try again, or keep this plan.','');
+  };
+}
+
+/* ---------- puzzle 12: match the colour ---------- */
+var RGBT=[{n:'sunset orange',c:[250,140,60]},{n:'sky blue',c:[70,160,210]},{n:'violet',c:[140,70,185]},{n:'fresh green',c:[80,180,110]},{n:'hot pink',c:[235,80,150]}];
+function rgbSVG(t,c){
+  function col(a){return 'rgb('+a[0]+','+a[1]+','+a[2]+')'}
+  return '<svg viewBox="0 0 800 260" role="img" aria-label="A computer screen with two colour swatches: the target and your colour"><rect width="800" height="260" fill="#0f2a2c"/><rect x="60" y="20" width="680" height="210" rx="14" fill="#1b2d33" stroke="#4a6a72" stroke-width="4"/><rect x="100" y="48" width="280" height="130" rx="8" fill="'+col(t)+'"/><rect x="420" y="48" width="280" height="130" rx="8" fill="'+col(c)+'" id="mine"/><text x="240" y="204" text-anchor="middle" font-family="DM Mono,monospace" font-size="18" fill="#a8bdb5">TARGET</text><text x="560" y="204" text-anchor="middle" font-family="DM Mono,monospace" font-size="18" fill="#a8bdb5">YOUR COLOUR</text></svg>';
+}
+function stepRGB(){
+  var t=RGBT[Math.floor(Math.random()*RGBT.length)],cur=[20,20,20];S.rgbT=t.c;S.rgbCur=cur;
+  stage.innerHTML=rgbSVG(t.c,cur);
+  setCard(frame(CAST.szabo,'Welcome to the graphic studio, '+N()+'! It is a classroom with computers. Every colour on a screen is a mix of red, green and blue light.','<p class="def">Make the same colour: '+t.n+'. Move the three sliders.</p><div class="slrow"><label for="sr">Red</label><input id="sr" type="range" min="0" max="255" value="20"><output id="vr">20</output></div><div class="slrow"><label for="sg">Green</label><input id="sg" type="range" min="0" max="255" value="20"><output id="vg">20</output></div><div class="slrow"><label for="sb">Blue</label><input id="sb" type="range" min="0" max="255" value="20"><output id="vb">20</output></div><p class="task" id="close">Move the sliders.</p><div class="row"><button class="btn" id="chk" type="button">Check my colour</button></div>'));
+  wireHint('Look at the target colour. Which light is strong: red, green or blue? Start with that one.');
+  function ok(){return Math.abs(cur[0]-t.c[0])<=38&&Math.abs(cur[1]-t.c[1])<=38&&Math.abs(cur[2]-t.c[2])<=38}
+  function dist(){return Math.abs(cur[0]-t.c[0])+Math.abs(cur[1]-t.c[1])+Math.abs(cur[2]-t.c[2])}
+  function upd(){
+    ['r','g','b'].forEach(function(k,i){cur[i]=+$('s'+k).value;$('v'+k).textContent=cur[i]});
+    var m=$('mine');if(m)m.setAttribute('fill','rgb('+cur[0]+','+cur[1]+','+cur[2]+')');
+    var d=dist();$('close').textContent=ok()?'Very close! Tap Check.':(d<=200?'Getting closer.':'Still far away.');addHuAfter($('close'));
+  }
+  ['r','g','b'].forEach(function(k){$('s'+k).oninput=function(){if(!S.locked)upd()}});
+  $('chk').onclick=function(){
+    if(S.locked)return;
+    if(ok())solve('Great! That is '+t.n+'.',['The graphic studio is a classroom with computers on the 4th floor.']);
+    else wrong('Not close enough. Move the sliders again.',2);
+  };
+}
+
+/* ---------- puzzle 13: Sport Day ---------- */
+var SPORT=[9,8,7,6,5,4,3,2],HAIRS=['#2a1f1a','#7a4a26','#d9b45a','#b4492a'];
+function sportSVG(red,win){
+  var r=0,b=0,nr=0,nb=0,i;
+  red.forEach(function(x,k){if(x){r+=SPORT[k];nr++}else{b+=SPORT[k];nb++}});
+  var fx=Math.max(190,Math.min(610,400-(r-b)*8));
+  var s='<svg viewBox="0 0 800 340" role="img" aria-label="Tug of war on Sport Day. The red team is on the left and the blue team is on the right.">';
+  s+='<defs><linearGradient id="sk2" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#8fcdf0"/><stop offset="1" stop-color="#dcf1fb"/></linearGradient></defs><rect width="800" height="340" fill="url(#sk2)"/><rect y="236" width="800" height="104" fill="#62a872"/>';
+  for(i=0;i<8;i++)s+='<rect x="'+(i*100)+'" y="236" width="50" height="104" fill="rgba(255,255,255,.07)"/>';
+  s+='<path d="M0 30H800" stroke="#3b4a52" stroke-width="3"/>';
+  var C=['#ee7d52','#f4cd5c','#2b6fe0','#7fd6a0','#e23b3b'];
+  for(i=0;i<16;i++)s+='<polygon points="'+(i*50+6)+',30 '+(i*50+44)+',30 '+(i*50+25)+',62" fill="'+C[i%5]+'"/>';
+  s+='<text x="400" y="132" text-anchor="middle" font-family="Rubik,sans-serif" font-weight="800" font-size="56" fill="#ee7d52" stroke="#0f1c1a" stroke-width="7" paint-order="stroke">SPORT DAY</text>';
+  s+='<path d="M400 240V330" stroke="#fff" stroke-width="3" stroke-dasharray="8 6" opacity=".7"/>';
+  s+='<path d="M96 264H704" stroke="#7a5a30" stroke-width="10" stroke-linecap="round"/><path d="M96 264H704" stroke="#c9a36a" stroke-width="6" stroke-linecap="round"/>';
+  var ri=0,bi=0,spR=Math.min(66,300/Math.max(nr,1)),spB=Math.min(66,300/Math.max(nb,1));
+  red.forEach(function(x,k){
+    var px,col,sx;
+    if(x){px=340-ri*spR;ri++;col='#d0383a';sx=1}else{px=460+bi*spB;bi++;col='#2f6fe0';sx=-1}
+    s+='<g transform="translate('+px+' 292) scale('+(0.9*sx)+' 0.9)">'+person(col,1,HAIRS[k%4])+'</g>';
+    s+='<circle cx="'+px+'" cy="200" r="17" fill="#fff7e8" stroke="#0f1c1a" stroke-width="2.5"/><text x="'+px+'" y="208" text-anchor="middle" font-family="Rubik,sans-serif" font-weight="800" font-size="22" fill="#0f1c1a">'+SPORT[k]+'</text>';
+  });
+  s+='<polygon points="'+(fx-12)+',262 '+(fx+12)+',262 '+fx+',226" fill="#f4cd5c" stroke="#0f1c1a" stroke-width="3" stroke-linejoin="round"/>';
+  if(win)s+='<circle cx="400" cy="262" r="30" fill="none" stroke="#7fd6a0" stroke-width="5"/><text x="400" y="170" text-anchor="middle" font-family="Rubik,sans-serif" font-weight="800" font-size="28" fill="#fff7e8" stroke="#0f1c1a" stroke-width="6" paint-order="stroke">FAIR GAME!</text>';
+  return s+'</svg>';
+}
+function stepSport(){
+  var red=SPORT.map(function(v,i){return i<4}),TOT=SPORT.reduce(function(a,b){return a+b},0);
+  function sums(){var r=0,n=0;red.forEach(function(x,k){if(x){r+=SPORT[k];n++}});return {r:r,b:TOT-r,n:n}}
+  setCard(frame(CAST.zoe,'Do you know? Every year we organise a Sport Day at Katedra. All the students play together. Today we play tug of war. The teams are not fair. Can you help?','<p class="def">Every number is the strength of a player. Tap a player to change the team. Make two teams of 4 players. Both teams must have the same strength.</p><div class="chips" id="team"></div><p class="task" id="tsum" aria-live="polite"></p><div class="row"><button class="btn" id="go2" type="button">Start the game!</button></div>'));
+  wireHint('Add all the numbers. The total is '+TOT+'. Each team needs '+(TOT/2)+'.');
+  function draw(win){
+    stage.innerHTML=sportSVG(red,win);
+    var t=sums();
+    $('team').innerHTML=SPORT.map(function(v,k){return '<button type="button" class="tchip '+(red[k]?'r':'b')+'" data-k="'+k+'" aria-label="Player with strength '+v+', '+(red[k]?'red':'blue')+' team"><b>'+v+'</b><span>'+(red[k]?'Red':'Blue')+'</span></button>'}).join('');
+    $('tsum').textContent='Red team: '+t.r+'  ·  Blue team: '+t.b+'  ·  Red has '+t.n+' players';
+    card.querySelectorAll('.tchip').forEach(function(b){b.onclick=function(){if(S.locked)return;var k=+b.getAttribute('data-k');red[k]=!red[k];draw()}});
+  }
+  $('go2').onclick=function(){
+    if(S.locked)return;var t=sums();
+    if(t.n!==4){wrong('Each team needs 4 players. The red team has '+t.n+'.',2);return}
+    if(t.r!==t.b){wrong('The rope moves to the '+(t.r>t.b?'red':'blue')+' team. They are stronger. Change the teams.',2);return}
+    draw(true);
+    solve('Fair teams! The rope does not move. Everybody cheers.',['Katedra has a Sport Day every year.']);
+  };
+  draw();
+}
+
+/* ---------- the end of the day ---------- */
+function celebrateSVG(){
+  var seed=11;function rnd(){seed=(seed*9301+49297)%233280;return seed/233280}
+  var i,s='<svg viewBox="0 0 800 380" role="img" aria-label="Celebration: the Katedra High School banner with fireworks, flags and confetti">';
+  s+='<defs><linearGradient id="nt" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#16224f"/><stop offset="1" stop-color="#4a3470"/></linearGradient></defs><rect width="800" height="380" fill="url(#nt)"/>';
+  for(i=0;i<46;i++)s+='<circle cx="'+Math.round(rnd()*800)+'" cy="'+Math.round(rnd()*250)+'" r="'+(1+rnd()*1.6).toFixed(1)+'" fill="#fff7e8" opacity="'+(0.4+rnd()*0.6).toFixed(2)+'"/>';
+  [[96,120,'#ff8593',0],[706,108,'#f4cd5c',.5],[56,262,'#5cc8ff',1],[748,266,'#b48cff',1.5],[400,52,'#7fd6a0',.8]].forEach(function(f){
+    s+='<g class="burst" style="animation-delay:'+f[3]+'s"><circle cx="'+f[0]+'" cy="'+f[1]+'" r="5" fill="'+f[2]+'"/>';
+    for(var k=0;k<14;k++){
+      var a=k*Math.PI*2/14,c=Math.cos(a),n=Math.sin(a);
+      s+='<line x1="'+(f[0]+c*16).toFixed(1)+'" y1="'+(f[1]+n*16).toFixed(1)+'" x2="'+(f[0]+c*46).toFixed(1)+'" y2="'+(f[1]+n*46).toFixed(1)+'" stroke="'+f[2]+'" stroke-width="4" stroke-linecap="round"/><circle cx="'+(f[0]+c*58).toFixed(1)+'" cy="'+(f[1]+n*58).toFixed(1)+'" r="3" fill="'+f[2]+'"/>';
+    }
+    s+='</g>';
+  });
+  var C=['#ee7d52','#f4cd5c','#2b6fe0','#7fd6a0','#e23b3b'];
+  s+='<path d="M0 18Q400 54 800 18" fill="none" stroke="#f1ede2" stroke-width="2"/>';
+  for(i=0;i<16;i++){var x=25+i*50,t=x/800,y=18*((1-t)*(1-t)+t*t)+108*t*(1-t);s+='<polygon points="'+(x-18)+','+y.toFixed(1)+' '+(x+18)+','+y.toFixed(1)+' '+x+','+(y+34).toFixed(1)+'" fill="'+C[i%5]+'"/>'}
+  s+='<polygon points="110,170 62,170 82,198 62,226 110,226" fill="#c9552f"/><polygon points="690,170 738,170 718,198 738,226 690,226" fill="#c9552f"/>';
+  s+='<rect x="110" y="96" width="580" height="130" rx="16" fill="#ee7d52" stroke="#fff7e8" stroke-width="6"/><rect x="124" y="110" width="552" height="102" rx="10" fill="none" stroke="#fff7e8" stroke-width="2" stroke-dasharray="8 6" opacity=".7"/>';
+  s+='<text x="400" y="172" text-anchor="middle" font-family="Rubik,sans-serif" font-weight="800" font-size="72" fill="#fff7e8" stroke="#7a2a10" stroke-width="8" paint-order="stroke">KATEDRA</text><text x="400" y="212" text-anchor="middle" font-family="Rubik,sans-serif" font-weight="800" font-size="36" fill="#fff7e8" stroke="#7a2a10" stroke-width="6" paint-order="stroke" letter-spacing="3">HIGH SCHOOL</text>';
+  [[150,64],[650,64]].forEach(function(p){var pts=[];for(var k=0;k<10;k++){var R=k%2?10:24,a=-Math.PI/2+k*Math.PI/5;pts.push((p[0]+Math.cos(a)*R).toFixed(1)+','+(p[1]+Math.sin(a)*R).toFixed(1))}s+='<polygon points="'+pts.join(' ')+'" fill="#f4cd5c" stroke="#fff7e8" stroke-width="2"/>'});
+  s+=cub(280,262,240,96,40,22,{front:'#b9523b',side:'#8c3a2a',top:'#d06a52'});
+  for(i=0;i<6;i++)s+='<rect x="'+(292+i*38)+'" y="272" width="24" height="26" fill="#ffe28a"/>';
+  [0,1,4,5].forEach(function(c){s+='<rect x="'+(292+c*38)+'" y="316" width="24" height="26" fill="#ffe28a"/>'});
+  s+='<rect x="380" y="318" width="40" height="40" fill="#1f3a44"/><rect x="384" y="322" width="15" height="36" fill="#ffe28a"/><rect x="401" y="322" width="15" height="36" fill="#ffe28a"/><rect y="358" width="800" height="22" fill="#2f6b4a"/>';
+  for(i=0;i<36;i++){var cx=Math.round(rnd()*780)+10,cy=Math.round(rnd()*330)+10;s+='<g class="conf" style="animation-delay:'+(rnd()*2.6).toFixed(2)+'s"><rect x="'+cx+'" y="'+cy+'" width="8" height="14" fill="'+C[i%5]+'" transform="rotate('+Math.round(rnd()*360)+' '+cx+' '+cy+')"/></g>'}
+  return s+'</svg>';
+}
+var LIKES={
+  sport:'We organise a Sport Day every year. Come and play with us!',
+  it:'Do you like IT? The IT section uses our well-equipped IT rooms every day.',
+  art:'Do you like art? The art section uses the art studio, the graphic studio and the art workshop.',
+  atm:'The friendly atmosphere is one of the best things about Katedra. Come and say hello!',
+  gen:'Not sure yet? That is fine. The general class is a good place to try many things.'
+};
+function stepFinale(){
+  stage.innerHTML=celebrateSVG();
+  var tot=total(),max=NP*3,title=tot>=max*0.88?'Katedra Star':(tot>=max*0.72?'Super Student':(tot>=max*0.5?'Good Explorer':'New Friend'));
+  var date=new Date().toLocaleDateString('en-GB',{day:'numeric',month:'long',year:'numeric'});
+  var recap=STEPS.slice(0,NP).map(function(x,i){var st=S.stars[i]||0;return '<li><span>'+x.t+'</span><span>'+x.lbl+'</span><span>'+new Array(st+1).join('★')+new Array(4-st).join('☆')+'</span></li>'}).join('');
+  var res=S.name+' spent a day at Katedra High School and became a '+title+'. Stars: '+tot+'/'+max+'. Minutes lost: '+S.lost+'.';
+  setCard('<div class="meta"><span class="tag">15:50</span><span>End of the day</span></div>'+talk(CAST.zoe,'What a day, '+N()+'! We learned, we played and we had fun. Thank you for coming to Katedra!')+
+    '<div class="cert"><p class="cert-co">Katedra High School · Open day</p><h2>Student for a Day</h2><p>This certifies that</p><p class="cert-name">'+esc(S.name||'Alex')+'</p><p>spent a day at our school and solved all the puzzles.</p>'+
+    '<p class="cert-row"><span>Your title</span><b>'+title+'</b></p><p class="cert-row"><span>Stars</span><b>'+tot+' / '+max+'</b></p><p class="cert-row"><span>Minutes lost</span><b>'+S.lost+'</b></p><p class="cert-date" style="color:var(--muted);font-size:14px">'+date+'</p></div>'+
+    '<ul class="day" aria-label="Your day">'+recap+'</ul>'+
+    '<p class="def">What did you like best today?</p><div class="chips" id="likes"><button type="button" class="chip" aria-pressed="false" data-k="sport">Sport Day</button><button type="button" class="chip" aria-pressed="false" data-k="it">IT lessons</button><button type="button" class="chip" aria-pressed="false" data-k="art">Art lessons</button><button type="button" class="chip" aria-pressed="false" data-k="atm">The atmosphere</button><button type="button" class="chip" aria-pressed="false" data-k="gen">I am not sure yet</button></div><p class="fb good" id="fb" role="status"></p>'+
+    '<div class="copyrow"><input id="res" type="text" readonly aria-label="Result text" value="'+esc(res)+'"><button class="btn ghost" id="copy" type="button">Copy result</button></div><div class="row"><button class="btn" id="again" type="button">Play again</button></div>');
+  $('likes').querySelectorAll('.chip').forEach(function(b){b.onclick=function(){
+    $('likes').querySelectorAll('.chip').forEach(function(c){c.setAttribute('aria-pressed',c===b)});
+    fb(LIKES[b.getAttribute('data-k')],'good');
+  }});
+  $('copy').onclick=function(){
+    var t=$('res'),manual=function(){t.focus();t.select()};
+    try{if(navigator.clipboard&&navigator.clipboard.writeText)navigator.clipboard.writeText(t.value).then(function(){fb('Copied!','good')},manual);else manual()}catch(e){manual()}
+  };
+  $('again').onclick=showStart;
+  S.locked=true;
+}
+
+/* ---------- start screen ---------- */
+function saveProfile(){try{localStorage.setItem('katedraDay',JSON.stringify({h:S.hood}))}catch(e){}}
+function loadProfile(){try{var p=JSON.parse(localStorage.getItem('katedraDay')||'null');if(p){if(p.h>=0&&p.h<4)S.hood=+p.h}}catch(e){}}
+function showStart(){
+  clearT();S.step=-1;S.stars=[];S.lost=0;S.notes=[];S.locked=false;
+  renderHud();renderPips();renderNotes();$('nb').open=false;$('stage').parentNode.insertBefore($('nb'),$('stage'));
+  mountYard({noTap:true});
+  var sw='<div class="sw" role="radiogroup" aria-label="Hoodie colour">'+HOODS.map(function(c,i){return '<button type="button" class="swatch'+(S.hood===i?' on':'')+'" role="radio" aria-checked="'+(S.hood===i)+'" data-i="'+i+'" aria-label="Hoodie: '+HNAMES[i]+'" style="background:'+c+'"></button>'}).join('')+'</div>';
+  setCard('<div class="intro"><div><h2>Welcome to Katedra!</h2><p>Katedra High School has an art section, an IT section and a general class. Today you are in the general class. You will try an IT lesson and an art lesson. School starts at 08:15.</p><p>Find the right rooms and solve '+NP+' puzzles. A wrong try costs minutes. Your notebook keeps the facts you learn.</p></div></div>'+
+    '<form id="sf" class="field" style="flex-direction:column;align-items:stretch;gap:12px" autocomplete="off"><div class="field"><label class="lab" for="pname">Your name</label><input id="pname" class="txt" type="text" maxlength="16" placeholder="Type your first name" value="" autocomplete="off"></div><div class="field"><span class="lab">Hoodie</span>'+sw+'</div><div><button class="btn" id="go" type="submit">Start the day</button></div></form>');
+  card.querySelectorAll('.swatch').forEach(function(b){b.onclick=function(){
+    S.hood=+b.getAttribute('data-i');
+    mountYard({noTap:true});
+    card.querySelectorAll('.swatch').forEach(function(x){var on=x===b;x.classList.toggle('on',on);x.setAttribute('aria-checked',on)});
+  }});
+  $('sf').onsubmit=function(e){e.preventDefault();S.name=String($('pname').value).replace(/\s+/g,' ').trim().slice(0,16)||'Alex';saveProfile();go(0)};
+}
+
+$('hubtn').onclick=function(){var on=!document.body.classList.contains('hu-on');document.body.classList.toggle('hu-on',on);this.setAttribute('aria-pressed',on)};
+loadProfile();
+showStart();
+})();
+</script>
+
+</body>
+</html>
